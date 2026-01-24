@@ -1,1 +1,56 @@
-<h1>HelloWorld</h1>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My App - Login</title>
+    <style>
+        body { font-family: sans-serif; display: flex; justify-content: center; padding: 50px; background: #f0f2f5; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 300px; }
+        input, select { width: 100%; margin: 10px 0; padding: 10px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div id="login-form">
+        <h2>Login</h2>
+        <input type="text" placeholder="Username">
+        <input type="password" placeholder="Password">
+        <button onclick="alert('Note: This requires a database to work!')">Login</button>
+        <p>No account? <a href="#" onclick="toggleForm()">Create one</a></p>
+    </div>
+
+    <div id="signup-form" class="hidden">
+        <h2>Create Account</h2>
+        <input type="text" placeholder="Choose Username">
+        <input type="password" placeholder="Choose Password">
+        
+        <label>Select Profile Emoji:</label>
+        <select id="emoji-picker">
+            <option value="😀">😀 Happy</option>
+            <option value="🚀">🚀 Space</option>
+            <option value="🐱">🐱 Cat</option>
+            <option value="🥷">🥷 Ninja</option>
+        </select>
+
+        <button onclick="saveUser()">Sign Up</button>
+        <p><a href="#" onclick="toggleForm()">Back to login</a></p>
+    </div>
+</div>
+
+<script>
+    function toggleForm() {
+        document.getElementById('login-form').classList.toggle('hidden');
+        document.getElementById('signup-form').classList.toggle('hidden');
+    }
+
+    function saveUser() {
+        // This is a temporary "save" that stays only in your browser's memory
+        alert("Account 'created' locally! To save this to the cloud permanently, you'll need a database like Firebase.");
+    }
+</script>
+
+</body>
+</html>
