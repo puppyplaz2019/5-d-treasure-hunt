@@ -33,4 +33,22 @@ function saveProfile() {
 // 3. Clear Canvas
 function clearCanvas() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
+}// This runs automatically whenever the page loads
+window.onload = function() {
+    const savedName = localStorage.getItem('myUsername');
+    const savedAvatar = localStorage.getItem('myAvatar');
+
+    if (savedName) {
+        document.getElementById('usernameInput').value = savedName;
+        console.log("Welcome back, " + savedName);
+    }
+
+    if (savedAvatar) {
+        // Create an image object to draw the saved art back onto the canvas
+        const img = new Image();
+        img.onload = function() {
+            ctx.drawImage(img, 0, 0);
+        };
+        img.src = savedAvatar;
+    }
+};
