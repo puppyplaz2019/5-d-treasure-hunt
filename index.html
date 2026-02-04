@@ -1,1 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mega Game Hub & Market</title>
+    <style>
+        :root { --neon: #00f2ff; --bg: #0b0b1e; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; overflow-x: hidden; }
+        
+        /* Screens */
+        .screen { display: none; padding: 20px; text-align: center; }
+        .active { display: block; }
 
+        /* Login & Profile Boxes */
+        .box { background: rgba(255,255,255,0.05); border: 2px solid var(--neon); padding: 30px; border-radius: 20px; display: inline-block; min-width: 300px; }
+        input { display: block; width: 90%; margin: 10px auto; padding: 12px; border-radius: 8px; border: none; }
+        button { background: var(--neon); color: black; border: none; padding: 10px 20px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px; }
+
+        /* Avatar Drawing Canvas */
+        #avatarCanvas { background: white; border: 3px solid var(--neon); cursor: crosshair; border-radius: 50%; }
+        .emoji-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 20px 0; max-height: 150px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.3); }
+        .emoji-opt { font-size: 30px; cursor: pointer; transition: 0.2s; }
+        .emoji-opt:hover { transform: scale(1.2); }
+
+        /* Marketplace */
+        .market-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; padding: 20px; }
+        .item-card { background: #161625; border: 1px solid #333; border-radius: 15px; padding: 15px; text-align: center; }
+        .item-icon { font-size: 50px; margin-bottom: 10px; }
+        .price { color: #00ff88; font-weight: bold; }
+
+        /* Profile Header */
+        .user-nav { display: flex; justify-content: space-between; align-items: center; background: #161625; padding: 10px 30px; border-bottom: 2px solid var(--neon); }
+        .mini-avatar { width: 40px; height: 40px; border-radius: 50%; border: 1px solid white; vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="screen active">
+        <div class="box">
+            <h1>JOIN THE HUB</h1>
+            <input type="text" id="username" placeholder="Choose Username">
+            <input type="password" id="password" placeholder="Choose Password">
+            <p>Step 1: Create your identity</p>
+            <button onclick="showScreen('profile-screen')">NEXT: DESIGN PROFILE</button>
+        </div>
+    </div>
+
+    <div id="profile-screen" class="screen">
+        <div class="box">
+            <h2>DESIGN YOUR AVATAR</h2>
+            <div style="display: flex; justify-content: space-around; flex-wrap: wrap;">
+                <div>
+                    <p>Draw Yourself:</p>
+                    <canvas id="avatarCanvas" width="150" height="150"></canvas><br>
+                    <button onclick="clearCanvas()">Clear</button>
+                </div>
+                <div>
+                    <p>Or Pick an Emoji:</p>
+                    <div class="emoji-grid" id="emojiGrid"></div>
+                </div>
+            </div>
+            <button onclick="finishProfile()">FINISH & ENTER HUB</button>
+        </div>
+    </div>
+
+    <div id="main-hub" class="screen">
+        <div class="user-nav">
+            <h2>GAME HUB</h2>
+            <div>
+                <span id="nav-name"></span>
+                <img id="nav-avatar" class="mini-avatar">
+                <span>💰 Coins: <span id="user-coins">500</span></span>
+            </div>
+        </div>
+
+        <h3 style="color: var(--neon); margin-top: 20px;">MARKETPLACE</h3>
+        <p>Buy items from other players or list your own!</p>
+        
+        <div class="market-grid" id="marketGrid">
+            </div>
+
+        <button onclick="alert('Item Creator coming soon! For now, browse the shop.')">+ SELL AN ITEM</button>
+    </div>
+
+    <script>
+        let selectedEmoji = "👤";
+        let isDrawing = false;
+        const canvas = document.getElementById('avatarCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Initialize Emoji Grid (Adding as many as possible)
+        const emojis = ["🐱","🤖","🥷","👻","👽","🦁","🐸","💩","🔥","💎","⭐","🎮","👾","🦖","🦄","🍕","🌈","🎩","😎","🦊"];
+        const grid = document.getElementById('emojiGrid');
+        emojis.forEach(e => {
+            let span = document.createElement('span');
+            span.className = 'emoji-opt';
+            span.innerText = e;
+            span.onclick = () => { selectedEmoji = e; alert("Emoji Selected: " + e); };
+            grid.appendChild(span);
+        });
+
+        // Drawing Logic
+        canvas.onmousedown = () => isDrawing = true;
+        canvas.onmouseup = () => isDrawing = false;
+        canvas.onmousemove = (e) => {
+            if (!isDrawing) return;
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.arc(e.offsetX, e.offsetY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            selectedEmoji = null; // Prioritize drawing if they draw
+        };
+
+        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function finishProfile() {
+            const name = document.getElementById('username').value;
+            if(!name) return alert("Enter a name!");
+            
+            document.getElementById('nav-name').innerText = name;
+            const navImg = document.getElementById('nav-avatar');
+            
+            if (selectedEmoji) {
+                // If they picked an emoji, we create a fake image for it
+                navImg.style.display = "none"; 
+                document.getElementById('nav-name').innerHTML = selectedEmoji + " " + name;
+            } else {
+                navImg.src = canvas.toDataURL(); // Save their drawing
+            }
+
+            loadMarket();
+            showScreen('main-hub');
+        }
+
+        function loadMarket() {
+            const items = [
+                { name: "Diamond Sword", price: 200, icon: "⚔️", seller: "Alex" },
+                { name: "Neon Cape", price: 450, icon: "🧣", seller: "Ghost" },
+                { name: "Speed Potion", price: 50, icon: "🧪", seller: "Bot101" },
+                { name: "Dragon Egg", price: 1000, icon: "🥚", seller: "ProPlayer" }
+            ];
+            const market = document.getElementById('marketGrid');
+            items.forEach(item => {
+                market.innerHTML += `
+                    <div class="item-card">
+                        <div class="item-icon">${item.icon}</div>
+                        <h3>${item.name}</h3>
+                        <p class="price">Price: ${item.price} 💰</p>
+                        <p><small>Seller: ${item.seller}</small></p>
+                        <button onclick="buyItem(${item.price})">BUY</button>
+                    </div>
+                `;
+            });
+        }
+
+        function buyItem(price) {
+            let coins = document.getElementById('user-coins');
+            let current = parseInt(coins.innerText);
+            if(current >= price) {
+                coins.innerText = current - price;
+                alert("Purchased! Item added to your inventory.");
+            } else {
+                alert("Not enough coins!");
+            }
+        }
+    </script>
+</body>
+</html>
