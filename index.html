@@ -1,86 +1,87 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D Cave Treasure Hunt</title>
+    <title>3D Cave Explorer</title>
     <style>
-        body { margin: 0; overflow: hidden; background: black; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; font-family: sans-serif; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #000; }
+        #ui { 
+            position: absolute; top: 10px; left: 10px; 
+            color: lime; font-family: monospace; pointer-events: none; 
+            background: rgba(0,0,0,0.5); padding: 10px;
+        }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h1>CAVE EXPLORER</h1>
-        <p>Use WASD to Move | Find the Golden Cube</p>
-        <p id="dist">Distance: ???</p>
+        <h1>CAVE_EXPLORER_V1</h1>
+        <p>CONTROLS: W,A,S,D to move</p>
+        <p id="dist">DISTANCE: SCANNING...</p>
     </div>
 
-    <script type="module">
-        import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js';
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-        // 1. SETUP THE SCENE
+    <script>
+        // 1. Create the World
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x050505); // Dark cave color
-        scene.fog = new THREE.Fog(0x050505, 1, 15); // Fog makes it look like a dark cave
-
-        const camera = new THREE.Camera();
-        const renderer = new THREE.WebGLRenderer();
+        scene.fog = new THREE.Fog(0x000000, 1, 15);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 2. THE PLAYER (Camera setup)
-        const player = new THREE.Group();
-        player.position.set(0, 1, 5);
-        scene.add(player);
-        const cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        player.add(cam);
-
-        // 3. THE TREASURE
+        // 2. The Treasure (Golden Cube)
         const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-        const material = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700 });
+        const material = new THREE.MeshStandardMaterial({ color: 0xFFD700 });
         const treasure = new THREE.Mesh(geometry, material);
-        // Put treasure in a random spot in the "cave"
-        treasure.position.set(Math.random() * 10 - 5, 0.5, Math.random() * -10);
+        treasure.position.set(Math.random() * 10 - 5, 0, Math.random() * -10 - 2);
         scene.add(treasure);
 
-        // 4. LIGHTING (Like a flashlight)
-        const flashlight = new THREE.SpotLight(0xffffff, 10);
-        flashlight.position.set(0, 0, 0);
-        player.add(flashlight);
-        player.add(flashlight.target);
-        flashlight.target.position.set(0, 0, -1);
+        // 3. The Flashlight (Attached to you)
+        const light = new THREE.PointLight(0xffffff, 2, 20);
+        scene.add(light);
 
-        const ambient = new THREE.AmbientLight(0x404040, 0.5); // Soft light so it's not pitch black
-        scene.add(ambient);
-
-        // 5. MOVEMENT LOGIC
-        const keys = {};
+        // 4. Movement Logic
+        let keys = {};
         window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
         window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
 
-        function update() {
-            if (keys['w']) player.position.z -= 0.1;
-            if (keys['s']) player.position.z += 0.1;
-            if (keys['a']) player.position.x -= 0.1;
-            if (keys['d']) player.position.x += 0.1;
-
-            // Rotate treasure for fun
-            treasure.rotation.y += 0.02;
-
-            // Check distance
-            const d = player.position.distanceTo(treasure.position);
-            document.getElementById('dist').innerText = "Distance: " + d.toFixed(1);
-
-            if(d < 0.8) {
-                alert("YOU FOUND THE TREASURE!");
-                treasure.position.set(Math.random() * 10 - 5, 0.5, Math.random() * -10); // Move it
-            }
-        }
+        camera.position.z = 5;
+        camera.position.y = 0.5;
 
         function animate() {
             requestAnimationFrame(animate);
-            update();
-            renderer.render(scene, cam);
+
+            // Move the camera/player
+            if (keys['w']) camera.position.z -= 0.1;
+            if (keys['s']) camera.position.z += 0.1;
+            if (keys['a']) camera.position.x -= 0.1;
+            if (keys['d']) camera.position.x += 0.1;
+
+            // Make the light follow the camera
+            light.position.copy(camera.position);
+
+            // Spin the treasure
+            treasure.rotation.y += 0.05;
+
+            // Check distance
+            const d = camera.position.distanceTo(treasure.position);
+            document.getElementById('dist').innerText = "DISTANCE: " + d.toFixed(2) + "m";
+
+            if(d < 0.7) {
+                alert("TREASURE FOUND!");
+                treasure.position.set(Math.random() * 10 - 5, 0, Math.random() * -10 - 2);
+            }
+
+            renderer.render(scene, camera);
         }
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
 
         animate();
     </script>
