@@ -1,92 +1,88 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Free Cloud Site</title>
+    <title>3D Cave Treasure Hunt</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0fdf4; display: flex; justify-content: center; padding: 40px; }
-        .box { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 320px; text-align: center; }
-        input, select { width: 100%; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #3ecf8e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
-        .hidden { display: none; }
-        .profile-pic { font-size: 60px; margin: 15px; }
+        body { margin: 0; overflow: hidden; background: black; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; font-family: sans-serif; pointer-events: none; }
     </style>
 </head>
 <body>
-
-<div class="box">
-    <div id="auth-section">
-        <h2 id="title">Create Account</h2>
-        <input id="email" type="email" placeholder="Email">
-        <input id="pass" type="password" placeholder="Password">
-        <div id="signup-only">
-            <label>Pick your Emoji:</label>
-            <select id="emoji-choice">
-                <option value="🚀">🚀 Rocket</option>
-                <option value="💎">💎 Diamond</option>
-                <option value="🔥">🔥 Fire</option>
-            </select>
-        </div>
-        <button id="btnAction">Submit</button>
-        <p id="toggleText" style="cursor:pointer; text-decoration:underline;">Already have an account? Login</p>
+    <div id="ui">
+        <h1>CAVE EXPLORER</h1>
+        <p>Use WASD to Move | Find the Golden Cube</p>
+        <p id="dist">Distance: ???</p>
     </div>
 
-    <div id="user-section" class="hidden">
-        <div class="profile-pic" id="displayEmoji">👤</div>
-        <h3 id="displayEmail"></h3>
-        <button onclick="logout()" style="background:#666">Log Out</button>
-    </div>
-</div>
+    <script type="module">
+        import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js';
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-    // 1. REPLACE THESE with your Supabase details
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
-    const supabase = lib.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // 1. SETUP THE SCENE
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505); // Dark cave color
+        scene.fog = new THREE.Fog(0x050505, 1, 15); // Fog makes it look like a dark cave
 
-    let isLogin = false;
+        const camera = new THREE.Camera();
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-    // Toggle between Login and Signup
-    document.getElementById('toggleText').onclick = () => {
-        isLogin = !isLogin;
-        document.getElementById('title').innerText = isLogin ? "Login" : "Create Account";
-        document.getElementById('signup-only').classList.toggle('hidden');
-        document.getElementById('toggleText').innerText = isLogin ? "Need an account? Sign up" : "Already have an account? Login";
-    };
+        // 2. THE PLAYER (Camera setup)
+        const player = new THREE.Group();
+        player.position.set(0, 1, 5);
+        scene.add(player);
+        const cam = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        player.add(cam);
 
-    document.getElementById('btnAction').onclick = async () => {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('pass').value;
-        const emoji = document.getElementById('emoji-choice').value;
+        // 3. THE TREASURE
+        const geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        const material = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0xFFD700 });
+        const treasure = new THREE.Mesh(geometry, material);
+        // Put treasure in a random spot in the "cave"
+        treasure.position.set(Math.random() * 10 - 5, 0.5, Math.random() * -10);
+        scene.add(treasure);
 
-        if (isLogin) {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) alert(error.message);
-        } else {
-            const { data, error } = await supabase.auth.signUp({ 
-                email, 
-                password,
-                options: { data: { user_emoji: emoji } } 
-            });
-            if (error) alert(error.message);
-            else alert("Check your email for a confirmation link!");
+        // 4. LIGHTING (Like a flashlight)
+        const flashlight = new THREE.SpotLight(0xffffff, 10);
+        flashlight.position.set(0, 0, 0);
+        player.add(flashlight);
+        player.add(flashlight.target);
+        flashlight.target.position.set(0, 0, -1);
+
+        const ambient = new THREE.AmbientLight(0x404040, 0.5); // Soft light so it's not pitch black
+        scene.add(ambient);
+
+        // 5. MOVEMENT LOGIC
+        const keys = {};
+        window.onkeydown = (e) => keys[e.key.toLowerCase()] = true;
+        window.onkeyup = (e) => keys[e.key.toLowerCase()] = false;
+
+        function update() {
+            if (keys['w']) player.position.z -= 0.1;
+            if (keys['s']) player.position.z += 0.1;
+            if (keys['a']) player.position.x -= 0.1;
+            if (keys['d']) player.position.x += 0.1;
+
+            // Rotate treasure for fun
+            treasure.rotation.y += 0.02;
+
+            // Check distance
+            const d = player.position.distanceTo(treasure.position);
+            document.getElementById('dist').innerText = "Distance: " + d.toFixed(1);
+
+            if(d < 0.8) {
+                alert("YOU FOUND THE TREASURE!");
+                treasure.position.set(Math.random() * 10 - 5, 0.5, Math.random() * -10); // Move it
+            }
         }
-    };
 
-    // Check for user
-    supabase.auth.onAuthStateChange((event, session) => {
-        if (session) {
-            document.getElementById('auth-section').classList.add('hidden');
-            document.getElementById('user-section').classList.remove('hidden');
-            document.getElementById('displayEmail').innerText = session.user.email;
-            document.getElementById('displayEmoji').innerText = session.user.user_metadata.user_emoji || "👤";
-        } else {
-            document.getElementById('auth-section').classList.remove('hidden');
-            document.getElementById('user-section').classList.add('hidden');
+        function animate() {
+            requestAnimationFrame(animate);
+            update();
+            renderer.render(scene, cam);
         }
-    });
 
-    async function logout() { await supabase.auth.signOut(); }
-</script>
+        animate();
+    </script>
 </body>
 </html>
