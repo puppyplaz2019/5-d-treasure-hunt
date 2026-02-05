@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D Cave - Stalactite Update</title>
+    <title>3D Cave - Looking Up Update</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
         #ui { 
@@ -13,8 +13,8 @@
 </head>
 <body>
     <div id="ui">
-        <h1>CAVE_EXPLORER_V4</h1>
-        <p>LOOK UP! High ceiling with Stalactites</p>
+        <h1>CAVE_EXPLORER_V5</h1>
+        <p>WASD: Move | Arrows: Look All Around</p>
         <p id="dist">DISTANCE TO CHEST: SCANNING...</p>
     </div>
 
@@ -22,100 +22,108 @@
 
     <script>
         const scene = new THREE.Scene();
-        scene.fog = new THREE.Fog(0x000000, 1, 18);
+        scene.fog = new THREE.Fog(0x000000, 1, 20);
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const rockMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const rockMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a });
 
-        // 1. THE TALL CAVE
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 24), rockMat);
-        floor.rotation.x = -Math.PI/2; floor.position.y = -1; scene.add(floor);
+        // 1. TALL CAVE CONSTRUCTION
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(15, 30), rockMat);
+        floor.rotation.x = -Math.PI/2; floor.position.y = -1.5; scene.add(floor);
 
-        const ceil = new THREE.Mesh(new THREE.PlaneGeometry(12, 24), rockMat);
-        ceil.rotation.x = Math.PI/2; ceil.position.y = 5; scene.add(ceil); // TALLER
+        const ceil = new THREE.Mesh(new THREE.PlaneGeometry(15, 30), rockMat);
+        ceil.rotation.x = Math.PI/2; ceil.position.y = 6; scene.add(ceil);
 
-        const sideWallGeo = new THREE.PlaneGeometry(24, 6); // TALLER WALLS
+        const sideWallGeo = new THREE.PlaneGeometry(30, 8);
         const leftWall = new THREE.Mesh(sideWallGeo, rockMat);
-        leftWall.rotation.y = Math.PI/2; leftWall.position.x = -6; leftWall.position.y = 2; scene.add(leftWall);
+        leftWall.rotation.y = Math.PI/2; leftWall.position.x = -7.5; leftWall.position.y = 2; scene.add(leftWall);
 
         const rightWall = new THREE.Mesh(sideWallGeo, rockMat);
-        rightWall.rotation.y = -Math.PI/2; rightWall.position.x = 6; rightWall.position.y = 2; scene.add(rightWall);
+        rightWall.rotation.y = -Math.PI/2; rightWall.position.x = 7.5; rightWall.position.y = 2; scene.add(rightWall);
 
-        const backWall = new THREE.Mesh(new THREE.PlaneGeometry(12, 6), rockMat);
-        backWall.position.z = -12; backWall.position.y = 2; scene.add(backWall);
+        const backWall = new THREE.Mesh(new THREE.PlaneGeometry(15, 8), rockMat);
+        backWall.position.z = -15; backWall.position.y = 2; scene.add(backWall);
 
-        // 2. ADD STALACTITES (Spikes from roof)
-        for(let i=0; i<15; i++) {
-            const spikeGeo = new THREE.ConeGeometry(0.3, 2, 4);
+        // 2. RANDOMIZED STALACTITES
+        for(let i=0; i<25; i++) {
+            const h = Math.random() * 2.5 + 0.5; // Random height
+            const w = Math.random() * 0.4 + 0.1; // Random width
+            const spikeGeo = new THREE.ConeGeometry(w, h, 6);
             const spike = new THREE.Mesh(spikeGeo, rockMat);
-            spike.position.set(Math.random()*10-5, 4, Math.random()*-20+10);
-            spike.rotation.x = Math.PI; // Point them down
+            spike.position.set(Math.random()*14-7, 6 - (h/2), Math.random()*28-14);
+            spike.rotation.x = Math.PI;
             scene.add(spike);
         }
 
         // 3. THE TREASURE CHEST
         const chestGroup = new THREE.Group();
-        
-        // Chest Base (Wood)
-        const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.5), new THREE.MeshStandardMaterial({color: 0x5C4033}));
-        chestGroup.add(base);
-
-        // Chest Lid (Gold)
-        const lid = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.2, 0.52), new THREE.MeshStandardMaterial({color: 0xFFD700}));
-        lid.position.y = 0.3;
-        chestGroup.add(lid);
-
-        chestGroup.position.set(0, -0.8, -8);
+        const base = new THREE.Mesh(new THREE.BoxGeometry(1, 0.5, 0.6), new THREE.MeshStandardMaterial({color: 0x4A3728}));
+        const lid = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.25, 0.65), new THREE.MeshStandardMaterial({color: 0xD4AF37}));
+        lid.position.y = 0.35;
+        chestGroup.add(base); chestGroup.add(lid);
+        chestGroup.position.set(0, -1.2, -10);
         scene.add(chestGroup);
 
         // 4. LIGHTS
-        const light = new THREE.PointLight(0xffffff, 2, 15);
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0x222222));
+        const flashlight = new THREE.PointLight(0xffffff, 2.5, 18);
+        scene.add(flashlight);
+        scene.add(new THREE.AmbientLight(0x111111));
 
         // 5. CONTROLS
         let keys = {};
         window.onkeydown = (e) => keys[e.code] = true;
         window.onkeyup = (e) => keys[e.code] = false;
 
-        let rot = 0;
-        camera.position.z = 8;
-        camera.position.y = 0.5;
+        let rotY = 0; // Left/Right
+        let rotX = 0; // Up/Down
+        camera.position.z = 12;
+        camera.position.y = 1;
 
         function animate() {
             requestAnimationFrame(animate);
-            if (keys['ArrowLeft']) rot += 0.04;
-            if (keys['ArrowRight']) rot -= 0.04;
-            camera.rotation.y = rot;
+
+            // Turn Left/Right
+            if (keys['ArrowLeft']) rotY += 0.04;
+            if (keys['ArrowRight']) rotY -= 0.04;
+            
+            // Look Up/Down
+            if (keys['ArrowUp']) rotX += 0.03;
+            if (keys['ArrowDown']) rotX -= 0.03;
+
+            // Clamp vertical look so you don't flip over
+            rotX = Math.max(-Math.PI/3, Math.min(Math.PI/3, rotX));
+
+            camera.rotation.x = rotX;
+            camera.rotation.y = rotY;
 
             const spd = 0.12;
             if (keys['KeyW']) {
-                camera.position.x -= Math.sin(rot) * spd;
-                camera.position.z -= Math.cos(rot) * spd;
+                camera.position.x -= Math.sin(rotY) * spd;
+                camera.position.z -= Math.cos(rotY) * spd;
             }
             if (keys['KeyS']) {
-                camera.position.x += Math.sin(rot) * spd;
-                camera.position.z += Math.cos(rot) * spd;
+                camera.position.x += Math.sin(rotY) * spd;
+                camera.position.z += Math.cos(rotY) * spd;
             }
 
             // COLLISION
-            if (camera.position.x > 5.5) camera.position.x = 5.5;
-            if (camera.position.x < -5.5) camera.position.x = -5.5;
-            if (camera.position.z > 11) camera.position.z = 11;
-            if (camera.position.z < -11) camera.position.z = -11;
+            if (camera.position.x > 6.8) camera.position.x = 6.8;
+            if (camera.position.x < -6.8) camera.position.x = -6.8;
+            if (camera.position.z > 14) camera.position.z = 14;
+            if (camera.position.z < -14) camera.position.z = -14;
 
-            light.position.copy(camera.position);
+            flashlight.position.copy(camera.position);
             
             const d = camera.position.distanceTo(chestGroup.position);
             document.getElementById('dist').innerText = "DIST TO CHEST: " + d.toFixed(1) + "m";
 
-            if(d < 1.0) {
-                alert("💰 TREASURE CHEST OPENED!");
-                chestGroup.position.set(Math.random()*8-4, -0.8, Math.random()*-15);
+            if(d < 1.2) {
+                alert("✨ TREASURE CLAIMED!");
+                chestGroup.position.set(Math.random()*12-6, -1.2, Math.random()*-25+10);
             }
 
             renderer.render(scene, camera);
