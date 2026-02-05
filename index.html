@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D Cave - No Limits</title>
+    <title>3D Cave - Infinite World</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
         #ui { 
@@ -13,32 +13,50 @@
 </head>
 <body>
     <div id="ui">
-        <h1>CAVE_EXPLORER_V13</h1>
-        <p>Go around the side to find the RED POLE in the back!</p>
-        <p id="dist">DISTANCE: ---</p>
+        <h1>CAVE_EXPLORER_V14</h1>
+        <p>Walk around the cave! Sun, Clouds, and Mountains are back.</p>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 5000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 10000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // MATERIALS
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
         const grassMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 });
 
-        // 1. THE LANDSCAPE
+        // 1. THE ENVIRONMENT
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(10000, 10000), grassMat);
         grass.rotation.x = -Math.PI/2; grass.position.y = -1.52; scene.add(grass);
 
         const caveFloor = new THREE.Mesh(new THREE.PlaneGeometry(20, 40), rockMat);
         caveFloor.rotation.x = -Math.PI/2; caveFloor.position.y = -1.5; scene.add(caveFloor);
 
-        // 2. THE CAVE WALLS (Physical Objects)
+        // 2. SUN, MOUNTAIN & CLOUDS
+        const sun = new THREE.Mesh(new THREE.SphereGeometry(20, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+        sun.position.set(-400, 300, -500); scene.add(sun);
+
+        const mountain = new THREE.Mesh(new THREE.ConeGeometry(200, 400, 4), new THREE.MeshStandardMaterial({color: 0x444455}));
+        mountain.position.set(-800, 150, -800); scene.add(mountain);
+
+        const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+        for(let i=0; i<100; i++) {
+            const cloud = new THREE.Mesh(new THREE.BoxGeometry(40 + Math.random()*40, 10, 30), cloudMat);
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 300 + Math.random() * 1500;
+            cloud.position.set(Math.cos(angle)*dist, 150 + Math.random()*100, Math.sin(angle)*dist);
+            scene.add(cloud);
+        }
+
+        scene.add(new THREE.AmbientLight(0x666666));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(1, 1, 1); scene.add(dirLight);
+
+        // 3. PHYSICAL CAVE WALLS
         const walls = [];
         function makeWall(w, h, d, x, z) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), rockMat);
@@ -47,31 +65,20 @@
             walls.push(mesh);
         }
 
-        // Right Wall
-        makeWall(1, 10, 40, 10, 0);
-        // Left Wall (Front part)
-        makeWall(1, 10, 15, -10, -12.5);
-        // Left Wall (Back part)
-        makeWall(1, 10, 15, -10, 12.5);
-        // Front Wall
-        makeWall(20, 10, 1, 0, -20);
-        // Back Wall
-        makeWall(20, 10, 1, 0, 20);
-        // Ceiling
+        makeWall(1, 10, 40, 10, 0);         // Right
+        makeWall(1, 10, 15, -10, -12.5);   // Left Front
+        makeWall(1, 10, 15, -10, 12.5);    // Left Back
+        makeWall(20, 10, 1, 0, -20);       // Front
+        makeWall(20, 10, 1, 0, 20);        // Back
+        
         const ceil = new THREE.Mesh(new THREE.PlaneGeometry(20, 40), rockMat);
         ceil.rotation.x = Math.PI/2; ceil.position.y = 8.5; scene.add(ceil);
 
-        // 3. LANDMARKS (Behind the cave)
+        // 4. LANDMARK
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 20), new THREE.MeshStandardMaterial({color: 0xff0000}));
-        pole.position.set(0, 5, 30); // 10 meters BEHIND the back wall
-        scene.add(pole);
+        pole.position.set(0, 5, 30); scene.add(pole);
 
-        // 4. DECORATIONS
-        scene.add(new THREE.AmbientLight(0x444444));
-        const sun = new THREE.DirectionalLight(0xffffff, 1);
-        sun.position.set(100, 100, 100); scene.add(sun);
-
-        // 5. CONTROLS
+        // 5. MOVEMENT
         let keys = {};
         window.onkeydown = (e) => keys[e.code] = true;
         window.onkeyup = (e) => keys[e.code] = false;
@@ -86,29 +93,24 @@
             if (keys['ArrowRight']) yaw -= 0.05;
             if (keys['ArrowUp']) pitch += 0.04;
             if (keys['ArrowDown']) pitch -= 0.04;
+            pitch = Math.max(-1.2, Math.min(1.2, pitch));
             camera.rotation.set(pitch, yaw, 0, 'YXZ');
 
-            const spd = 0.3;
-            let moveX = 0;
-            let moveZ = 0;
+            const spd = 0.4;
+            let moveX = 0, moveZ = 0;
 
             if (keys['KeyW']) { moveX -= Math.sin(yaw) * spd; moveZ -= Math.cos(yaw) * spd; }
             if (keys['KeyS']) { moveX += Math.sin(yaw) * spd; moveZ += Math.cos(yaw) * spd; }
             if (keys['KeyA']) { moveX -= Math.cos(yaw) * spd; moveZ += Math.sin(yaw) * spd; }
             if (keys['KeyD']) { moveX += Math.cos(yaw) * spd; moveZ -= Math.sin(yaw) * spd; }
 
-            // SIMPLE BOX COLLISION
             let nextX = camera.position.x + moveX;
             let nextZ = camera.position.z + moveZ;
 
-            // Only stop the player if they are INSIDE the wall's thickness
-            // Otherwise, let them walk anywhere!
             let collision = false;
+            const playerPos = new THREE.Vector3(nextX, camera.position.y, nextZ);
             walls.forEach(w => {
-                const bounds = new THREE.Box3().setFromObject(w);
-                if (bounds.containsPoint(new THREE.Vector3(nextX, camera.position.y, nextZ))) {
-                    collision = true;
-                }
+                if (new THREE.Box3().setFromObject(w).containsPoint(playerPos)) collision = true;
             });
 
             if (!collision) {
@@ -116,12 +118,9 @@
                 camera.position.z = nextZ;
             }
 
-            // Sky Logic
-            if (Math.abs(camera.position.x) > 12 || Math.abs(camera.position.z) > 22) {
-                scene.background = new THREE.Color(0x87CEEB);
-            } else {
-                scene.background = new THREE.Color(0x000000);
-            }
+            // Sky Transition
+            const isOutside = Math.abs(camera.position.x) > 11 || Math.abs(camera.position.z) > 21;
+            scene.background = new THREE.Color(isOutside ? 0x87CEEB : 0x000000);
 
             renderer.render(scene, camera);
         }
