@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D Cave - Total Freedom</title>
+    <title>3D Cave - No Limits</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; }
         #ui { 
@@ -9,95 +9,69 @@
             color: #00ff00; font-family: monospace; pointer-events: none; 
             background: rgba(0,0,0,0.8); padding: 10px; border: 1px solid #0f0;
         }
-        #msg {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: gold; font-family: monospace; font-size: 30px; display: none;
-            text-shadow: 2px 2px #000; pointer-events: none;
-        }
     </style>
 </head>
 <body>
     <div id="ui">
-        <h1>CAVE_EXPLORER_V12</h1>
-        <p>Walk AROUND the cave to find more clouds!</p>
+        <h1>CAVE_EXPLORER_V13</h1>
+        <p>Go around the side to find the RED POLE in the back!</p>
         <p id="dist">DISTANCE: ---</p>
     </div>
-    <div id="msg">✨ TREASURE CLAIMED! ✨</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
         const scene = new THREE.Scene();
-        scene.fog = new THREE.Fog(0x000000, 1, 35);
-        
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 3000);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 5000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
+        // MATERIALS
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
         const grassMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 });
 
-        // 1. THE WORLD
-        // Make the grass massive and centered
-        const grass = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), grassMat);
-        grass.rotation.x = -Math.PI/2; 
-        grass.position.y = -1.52;
-        scene.add(grass);
+        // 1. THE LANDSCAPE
+        const grass = new THREE.Mesh(new THREE.PlaneGeometry(10000, 10000), grassMat);
+        grass.rotation.x = -Math.PI/2; grass.position.y = -1.52; scene.add(grass);
 
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 40), rockMat);
-        floor.rotation.x = -Math.PI/2; floor.position.y = -1.5; scene.add(floor);
+        const caveFloor = new THREE.Mesh(new THREE.PlaneGeometry(20, 40), rockMat);
+        caveFloor.rotation.x = -Math.PI/2; caveFloor.position.y = -1.5; scene.add(caveFloor);
 
-        const ceil = new THREE.Mesh(new THREE.PlaneGeometry(20, 40), rockMat);
-        ceil.rotation.x = Math.PI/2; ceil.position.y = 5; scene.add(ceil);
-
-        // 2. SUN AND SURROUNDING CLOUDS
-        const sunSphere = new THREE.Mesh(new THREE.SphereGeometry(15, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
-        sunSphere.position.set(-300, 200, -300);
-        scene.add(sunSphere);
-
-        const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
-        for(let i=0; i<100; i++) {
-            const cloud = new THREE.Mesh(new THREE.BoxGeometry(30 + Math.random()*20, 10, 20), cloudMat);
-            // Spread clouds in all directions (360 degrees)
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 200 + Math.random() * 800;
-            cloud.position.set(Math.cos(angle)*dist, 100 + Math.random()*50, Math.sin(angle)*dist);
-            scene.add(cloud);
+        // 2. THE CAVE WALLS (Physical Objects)
+        const walls = [];
+        function makeWall(w, h, d, x, z) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), rockMat);
+            mesh.position.set(x, h/2 - 1.5, z);
+            scene.add(mesh);
+            walls.push(mesh);
         }
 
-        scene.add(new THREE.DirectionalLight(0xffffff, 1));
-        scene.add(new THREE.AmbientLight(0x555555));
+        // Right Wall
+        makeWall(1, 10, 40, 10, 0);
+        // Left Wall (Front part)
+        makeWall(1, 10, 15, -10, -12.5);
+        // Left Wall (Back part)
+        makeWall(1, 10, 15, -10, 12.5);
+        // Front Wall
+        makeWall(20, 10, 1, 0, -20);
+        // Back Wall
+        makeWall(20, 10, 1, 0, 20);
+        // Ceiling
+        const ceil = new THREE.Mesh(new THREE.PlaneGeometry(20, 40), rockMat);
+        ceil.rotation.x = Math.PI/2; ceil.position.y = 8.5; scene.add(ceil);
 
-        // 3. PHYSICAL CAVE WALLS
-        const wallGroup = new THREE.Group();
-        const rightWall = new THREE.Mesh(new THREE.BoxGeometry(4, 10, 40), rockMat);
-        rightWall.position.set(11, 2, 0); wallGroup.add(rightWall);
+        // 3. LANDMARKS (Behind the cave)
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 20), new THREE.MeshStandardMaterial({color: 0xff0000}));
+        pole.position.set(0, 5, 30); // 10 meters BEHIND the back wall
+        scene.add(pole);
 
-        const leftWallFront = new THREE.Mesh(new THREE.BoxGeometry(4, 10, 16), rockMat);
-        leftWallFront.position.set(-11, 2, -12); wallGroup.add(leftWallFront);
+        // 4. DECORATIONS
+        scene.add(new THREE.AmbientLight(0x444444));
+        const sun = new THREE.DirectionalLight(0xffffff, 1);
+        sun.position.set(100, 100, 100); scene.add(sun);
 
-        const leftWallBack = new THREE.Mesh(new THREE.BoxGeometry(4, 10, 16), rockMat);
-        leftWallBack.position.set(-11, 2, 12); wallGroup.add(leftWallBack);
-
-        const frontEnd = new THREE.Mesh(new THREE.BoxGeometry(22, 10, 1), rockMat);
-        frontEnd.position.set(0, 2, -20); wallGroup.add(frontEnd);
-
-        const backEnd = new THREE.Mesh(new THREE.BoxGeometry(22, 10, 1), rockMat);
-        backEnd.position.set(0, 2, 20); wallGroup.add(backEnd);
-        scene.add(wallGroup);
-
-        // 4. TREASURE
-        const chest = new THREE.Group();
-        const b = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.6, 0.7), new THREE.MeshStandardMaterial({color: 0x4A3728}));
-        const l = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.3, 0.75), new THREE.MeshStandardMaterial({color: 0xD4AF37}));
-        l.position.y = 0.4; chest.add(b); chest.add(l);
-        chest.position.set(0, -1.2, -5); scene.add(chest);
-
-        const flashlight = new THREE.PointLight(0xffffff, 3, 25);
-        scene.add(flashlight);
-
-        // 5. MOVEMENT LOGIC
+        // 5. CONTROLS
         let keys = {};
         window.onkeydown = (e) => keys[e.code] = true;
         window.onkeyup = (e) => keys[e.code] = false;
@@ -112,57 +86,41 @@
             if (keys['ArrowRight']) yaw -= 0.05;
             if (keys['ArrowUp']) pitch += 0.04;
             if (keys['ArrowDown']) pitch -= 0.04;
-            pitch = Math.max(-1.2, Math.min(1.2, pitch));
             camera.rotation.set(pitch, yaw, 0, 'YXZ');
 
-            const spd = 0.25;
-            let nextX = camera.position.x;
-            let nextZ = camera.position.z;
+            const spd = 0.3;
+            let moveX = 0;
+            let moveZ = 0;
 
-            if (keys['KeyW']) { nextX -= Math.sin(yaw) * spd; nextZ -= Math.cos(yaw) * spd; }
-            if (keys['KeyS']) { nextX += Math.sin(yaw) * spd; nextZ += Math.cos(yaw) * spd; }
-            if (keys['KeyA']) { nextX -= Math.cos(yaw) * spd; nextZ += Math.sin(yaw) * spd; }
-            if (keys['KeyD']) { nextX += Math.cos(yaw) * spd; nextZ -= Math.sin(yaw) * spd; }
+            if (keys['KeyW']) { moveX -= Math.sin(yaw) * spd; moveZ -= Math.cos(yaw) * spd; }
+            if (keys['KeyS']) { moveX += Math.sin(yaw) * spd; moveZ += Math.cos(yaw) * spd; }
+            if (keys['KeyA']) { moveX -= Math.cos(yaw) * spd; moveZ += Math.sin(yaw) * spd; }
+            if (keys['KeyD']) { moveX += Math.cos(yaw) * spd; moveZ -= Math.sin(yaw) * spd; }
 
-            // NEW: CIRCUMVENTING COLLISION
-            // We only block movement if the player is trying to enter a wall's space
-            let isInsideCaveX = (nextX > -9 && nextX < 9);
-            let isInsideCaveZ = (nextZ > -20 && nextZ < 20);
+            // SIMPLE BOX COLLISION
+            let nextX = camera.position.x + moveX;
+            let nextZ = camera.position.z + moveZ;
 
-            // Left Wall Collision (with hole)
-            if (nextX < -8.5 && nextX > -13) {
-                const inHole = (nextZ > -4 && nextZ < 4);
-                if (!inHole) nextX = camera.position.x; 
+            // Only stop the player if they are INSIDE the wall's thickness
+            // Otherwise, let them walk anywhere!
+            let collision = false;
+            walls.forEach(w => {
+                const bounds = new THREE.Box3().setFromObject(w);
+                if (bounds.containsPoint(new THREE.Vector3(nextX, camera.position.y, nextZ))) {
+                    collision = true;
+                }
+            });
+
+            if (!collision) {
+                camera.position.x = nextX;
+                camera.position.z = nextZ;
             }
-            // Right Wall Collision
-            if (nextX > 8.5 && nextX < 13 && isInsideCaveZ) nextX = 8.5;
-            // Front Wall Collision
-            if (nextZ < -19 && nextZ > -21 && isInsideCaveX) nextZ = -19;
-            // Back Wall Collision
-            if (nextZ > 19 && nextZ < 21 && isInsideCaveX) nextZ = 19;
 
-            camera.position.x = nextX;
-            camera.position.z = nextZ;
-
-            // Visual effects
-            if (camera.position.x < -12 || camera.position.x > 12 || Math.abs(camera.position.z) > 22) {
+            // Sky Logic
+            if (Math.abs(camera.position.x) > 12 || Math.abs(camera.position.z) > 22) {
                 scene.background = new THREE.Color(0x87CEEB);
-                scene.fog.color = new THREE.Color(0x87CEEB);
-                scene.fog.far = 2000;
             } else {
                 scene.background = new THREE.Color(0x000000);
-                scene.fog.color = new THREE.Color(0x000000);
-                scene.fog.far = 40;
-            }
-
-            flashlight.position.copy(camera.position);
-            const d = camera.position.distanceTo(chest.position);
-            document.getElementById('dist').innerText = "DISTANCE: " + d.toFixed(1) + "m";
-
-            if(d < 1.5) {
-                document.getElementById('msg').style.display = 'block';
-                setTimeout(() => { document.getElementById('msg').style.display = 'none'; }, 2000);
-                chest.position.set(Math.random()*14-7, -1.2, Math.random()*20-10);
             }
 
             renderer.render(scene, camera);
