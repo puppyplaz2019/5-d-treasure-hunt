@@ -13,7 +13,7 @@
 </head>
 <body>
     <div id="ui">
-        <h1>EXPLORER_V17</h1>
+        <h1>EXPLORER_V18</h1>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -29,62 +29,55 @@
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x333333, flatShading: true });
         const grassMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 });
         const mtMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-        const internalMat = new THREE.MeshStandardMaterial({ color: 0x221100 });
 
         // 1. LANDSCAPE
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(10000, 10000), grassMat);
         grass.rotation.x = -Math.PI/2; grass.position.y = -1.5; scene.add(grass);
 
-        // 2. THE IMPROVED NATURAL CAVE (Moved away from spawn)
+        // 2. THE "OLD CAVE" (Rounded)
         const caveGroup = new THREE.Group();
-        caveGroup.position.set(50, 0, 50); // Move it away from spawn
         scene.add(caveGroup);
 
-        // Rounded Roof
-        const caveRoof = new THREE.Mesh(
-            new THREE.CylinderGeometry(10, 10, 40, 16, 1, true, 0, Math.PI), 
-            rockMat
-        );
-        caveRoof.rotation.z = Math.PI / 2;
-        caveRoof.position.y = 3;
-        caveGroup.add(caveRoof);
+        // We build the cave using large spheres and cylinders to make it look "scooped out"
+        const caveMain = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 40, 12, 1, true), rockMat);
+        caveMain.rotation.z = Math.PI/2;
+        caveMain.position.set(0, 4, -20);
+        caveGroup.add(caveMain);
 
-        // Cave Floor
-        const caveFloor = new THREE.Mesh(new THREE.PlaneGeometry(40, 20), rockMat);
-        caveFloor.rotation.x = -Math.PI/2;
-        caveFloor.position.y = -1.4;
-        caveGroup.add(caveFloor);
+        // Rounding the entrance and back with large "Rock Rings"
+        for(let i=0; i<8; i++) {
+            const r = new THREE.Mesh(new THREE.TorusGeometry(8, 2, 8, 12), rockMat);
+            r.position.set(0, 4, -20 + (i * 5) - 20);
+            r.rotation.y = Math.PI/2;
+            caveGroup.add(r);
+        }
 
         // Back Wall
-        const backWall = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 16, 0, Math.PI*2, 0, Math.PI/2), rockMat);
-        backWall.position.set(20, 3, 0);
-        backWall.rotation.z = Math.PI/2;
-        caveGroup.add(backWall);
+        const back = new THREE.Mesh(new THREE.SphereGeometry(10, 12, 12), rockMat);
+        back.position.set(0, 4, -40);
+        caveGroup.add(back);
 
-        // 3. CLIMBABLE MOUNTAIN
+        // 3. THE MOUNTAIN
         const mtPos = {x: -300, z: -300};
         const mtLayers = [];
         for(let i=0; i<8; i++) {
             const size = 200 - (i * 25);
+            // We skip the middle of the first few layers so there is actually space inside
             const layer = new THREE.Mesh(new THREE.BoxGeometry(size, 10, size), mtMat);
             layer.position.set(mtPos.x, (i * 10) - 1.5, mtPos.z);
             scene.add(layer);
             mtLayers.push(layer);
         }
 
-        // 4. SECRET MOUNTAIN ROOM & ENTRANCE
-        const secretRoom = new THREE.Mesh(new THREE.BoxGeometry(40, 8, 40), internalMat);
-        secretRoom.position.set(mtPos.x, 3.5, mtPos.z);
-        scene.add(secretRoom);
-
-        // The hidden "door" - a small dark rock on the north face of the mountain
-        const entrance = new THREE.Mesh(new THREE.BoxGeometry(5, 8, 2), internalMat);
-        entrance.position.set(mtPos.x, 3.5, mtPos.z + 101); // Right on the edge of the first layer
-        scene.add(entrance);
+        // 4. THE SECRET ROOM (No more tiny doors)
+        // Just walk into the mountain from the North side (z = -200 range)
+        const interior = new THREE.Mesh(new THREE.BoxGeometry(40, 10, 40), new THREE.MeshStandardMaterial({color: 0x111111}));
+        interior.position.set(mtPos.x, 3.5, mtPos.z);
+        scene.add(interior);
 
         // 5. LIGHTING
         scene.add(new THREE.AmbientLight(0x666666));
-        const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+        const sun = new THREE.DirectionalLight(0xffffff, 1);
         sun.position.set(500, 500, 200); scene.add(sun);
 
         // 6. MOVEMENT
@@ -93,7 +86,7 @@
         window.onkeyup = (e) => keys[e.code] = false;
 
         let yaw = 0, pitch = 0;
-        camera.position.set(0, 2, 0); // Spawn in the open
+        camera.position.set(0, 2, 20); // Spawn looking at the cave
 
         function animate() {
             requestAnimationFrame(animate);
@@ -114,20 +107,24 @@
             camera.position.x += moveX;
             camera.position.z += moveZ;
 
-            // DYNAMIC HEIGHT
+            // CLIMBING
             let groundHeight = 2; 
-            mtLayers.forEach(layer => {
+            mtLayers.forEach((layer, index) => {
                 const box = new THREE.Box3().setFromObject(layer);
                 if (camera.position.x > box.min.x && camera.position.x < box.max.x && 
                     camera.position.z > box.min.z && camera.position.z < box.max.z) {
-                    groundHeight = layer.position.y + 7.5; 
+                    // Only climb if we are NOT in the very center of the base (the secret room)
+                    const distToCenter = Math.sqrt(Math.pow(camera.position.x - mtPos.x, 2) + Math.pow(camera.position.z - mtPos.z, 2));
+                    if (index === 0 || distToCenter > 30) {
+                        groundHeight = layer.position.y + 7.5; 
+                    }
                 }
             });
             camera.position.y += (groundHeight - camera.position.y) * 0.1;
 
-            // Visual Cave Darkening
-            const distToCave = camera.position.distanceTo(new THREE.Vector3(50, 0, 50));
-            scene.background = new THREE.Color(distToCave < 20 ? 0x050505 : 0x87CEEB);
+            // Visual Darkening
+            const inCave = (camera.position.z < 0 && Math.abs(camera.position.x) < 10);
+            scene.background = new THREE.Color(inCave ? 0x000000 : 0x87CEEB);
 
             renderer.render(scene, camera);
         }
