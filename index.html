@@ -13,7 +13,7 @@
 </head>
 <body>
     <div id="ui">
-        <h1>EXPLORER_V21</h1>
+        <h1>EXPLORER_V22</h1>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -27,7 +27,7 @@
         document.body.appendChild(renderer.domElement);
 
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-        const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111 }); // Darker rock floor
+        const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
         const grassMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 });
         const mtMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
 
@@ -35,49 +35,43 @@
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(10000, 10000), grassMat);
         grass.rotation.x = -Math.PI/2; grass.position.y = -1.5; scene.add(grass);
 
-        // 2. RECTANGLE CAVE WITH ROCK FLOOR
+        // 2. RECTANGLE CAVE
         const walls = [];
         function makeWall(w, h, d, x, y, z, mat = rockMat) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
             mesh.position.set(x, y, z);
             scene.add(mesh);
             walls.push(mesh);
-            return mesh;
         }
+        makeWall(1, 10, 40, 10, 3.5, -20);
+        makeWall(1, 10, 40, -10, 3.5, -20);
+        makeWall(20, 10, 1, 0, 3.5, -40);
+        makeWall(20, 1, 40, 0, 8.5, -20);
+        makeWall(20, 0.5, 40, 0, -1.3, -20, floorMat);
 
-        makeWall(1, 10, 40, 10, 3.5, -20);    // Right
-        makeWall(1, 10, 40, -10, 3.5, -20);   // Left
-        makeWall(20, 10, 1, 0, 3.5, -40);     // Back
-        makeWall(20, 1, 40, 0, 8.5, -20);     // Ceiling
-        makeWall(20, 0.5, 40, 0, -1.3, -20, floorMat); // ROCK FLOOR
-
-        // Spikes and Pebbles
-        for(let i=0; i<40; i++) {
-            const p = new THREE.Mesh(new THREE.DodecahedronGeometry(0.2), rockMat);
-            p.position.set(Math.random()*18-9, -1.2, Math.random()*-38-1);
-            scene.add(p);
+        for(let i=0; i<30; i++) {
             const s = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5, 6), rockMat);
             s.rotation.x = Math.PI;
             s.position.set(Math.random()*18-9, 8, Math.random()*-38-1);
             scene.add(s);
         }
 
-        // 3. THE MOUNTAIN WITH A PHYSICAL TUNNEL
+        // 3. THE CONE MOUNTAIN
         const mtPos = {x: -200, z: -200};
-        const mtLayers = [];
+        const mtRadius = 100;
+        const mtHeight = 150;
         
-        // BASE LAYER: Split into two pieces to create a doorway
-        makeWall(75, 10, 200, mtPos.x - 62, 3.5, mtPos.z, mtMat); // Left half
-        makeWall(75, 10, 200, mtPos.x + 62, 3.5, mtPos.z, mtMat); // Right half
-        // (Gap in middle is 50 units wide)
+        const mountain = new THREE.Mesh(
+            new THREE.ConeGeometry(mtRadius, mtHeight, 8), 
+            mtMat
+        );
+        mountain.position.set(mtPos.x, mtHeight/2 - 1.5, mtPos.z);
+        scene.add(mountain);
 
-        for(let i=1; i<8; i++) {
-            const size = 200 - (i * 25);
-            const layer = new THREE.Mesh(new THREE.BoxGeometry(size, 10, size), mtMat);
-            layer.position.set(mtPos.x, (i * 10) - 1.5, mtPos.z);
-            scene.add(layer);
-            mtLayers.push(layer);
-        }
+        // Hidden entrance visual
+        const entrance = new THREE.Mesh(new THREE.BoxGeometry(8, 12, 5), floorMat);
+        entrance.position.set(mtPos.x, 4, mtPos.z + 98);
+        scene.add(entrance);
 
         // 4. LIGHTING
         scene.add(new THREE.AmbientLight(0x777777));
@@ -111,7 +105,7 @@
             let nextX = camera.position.x + moveX;
             let nextZ = camera.position.z + moveZ;
 
-            // Simple Collision
+            // Collision for Cave
             let hitWall = false;
             walls.forEach(w => {
                 const box = new THREE.Box3().setFromObject(w);
@@ -123,24 +117,31 @@
                 camera.position.z = nextZ;
             }
 
-            // Climbing Physics
-            let groundHeight = 2; 
-            // Only climb if NOT in the center tunnel area
-            const inTunnel = (Math.abs(nextX - mtPos.x) < 25); 
+            // SLOPE CLIMBING LOGIC
+            const dx = camera.position.x - mtPos.x;
+            const dz = camera.position.z - mtPos.z;
+            const dist = Math.sqrt(dx*dx + dz*dz);
             
-            if (!inTunnel) {
-                mtLayers.forEach(layer => {
-                    const box = new THREE.Box3().setFromObject(layer);
-                    if (nextX > box.min.x && nextX < box.max.x && nextZ > box.min.z && nextZ < box.max.z) {
-                        groundHeight = layer.position.y + 7.5; 
-                    }
-                });
+            let targetY = 2;
+            
+            // Check if player is on the mountain slope
+            if (dist < mtRadius) {
+                // Entrance Zone: If near the door, don't climb
+                const inDoorway = (camera.position.x > mtPos.x - 10 && camera.position.x < mtPos.x + 10 && camera.position.z > mtPos.z + 90);
+                
+                if (!inDoorway) {
+                    // Calculate height based on distance to center (Linear Slope)
+                    targetY = (1 - (dist / mtRadius)) * mtHeight;
+                }
             }
-            camera.position.y += (groundHeight - camera.position.y) * 0.1;
+            
+            // Apply gravity/climb smoothly
+            camera.position.y += (targetY - camera.position.y) * 0.1;
 
-            // Visuals
+            // Visual Darkening
             const inCave = (camera.position.z < 0 && camera.position.z > -40 && Math.abs(camera.position.x) < 10);
-            scene.background = new THREE.Color(inCave || (inTunnel && Math.abs(nextZ - mtPos.z) < 50) ? 0x000000 : 0x87CEEB);
+            const inMountain = (dist < 20); // Darken when at the very center of mountain
+            scene.background = new THREE.Color(inCave || inMountain ? 0x000000 : 0x87CEEB);
 
             renderer.render(scene, camera);
         }
