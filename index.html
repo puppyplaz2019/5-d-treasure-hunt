@@ -13,7 +13,7 @@
 </head>
 <body>
     <div id="ui">
-        <h1>EXPLORER_V18</h1>
+        <h1>EXPLORER_V19</h1>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -26,7 +26,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const rockMat = new THREE.MeshStandardMaterial({ color: 0x333333, flatShading: true });
+        const rockMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
         const grassMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 });
         const mtMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
 
@@ -34,59 +34,49 @@
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(10000, 10000), grassMat);
         grass.rotation.x = -Math.PI/2; grass.position.y = -1.5; scene.add(grass);
 
-        // 2. THE "OLD CAVE" (Rounded)
-        const caveGroup = new THREE.Group();
-        scene.add(caveGroup);
-
-        // We build the cave using large spheres and cylinders to make it look "scooped out"
-        const caveMain = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 40, 12, 1, true), rockMat);
-        caveMain.rotation.z = Math.PI/2;
-        caveMain.position.set(0, 4, -20);
-        caveGroup.add(caveMain);
-
-        // Rounding the entrance and back with large "Rock Rings"
-        for(let i=0; i<8; i++) {
-            const r = new THREE.Mesh(new THREE.TorusGeometry(8, 2, 8, 12), rockMat);
-            r.position.set(0, 4, -20 + (i * 5) - 20);
-            r.rotation.y = Math.PI/2;
-            caveGroup.add(r);
+        // 2. THE RECTANGLE CAVE
+        const walls = [];
+        function makeWall(w, h, d, x, y, z) {
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), rockMat);
+            mesh.position.set(x, y, z);
+            scene.add(mesh);
+            walls.push(mesh);
         }
 
-        // Back Wall
-        const back = new THREE.Mesh(new THREE.SphereGeometry(10, 12, 12), rockMat);
-        back.position.set(0, 4, -40);
-        caveGroup.add(back);
+        // Cave Walls (Building a solid box)
+        makeWall(1, 10, 40, 10, 3.5, -20);  // Right
+        makeWall(1, 10, 40, -10, 3.5, -20); // Left
+        makeWall(20, 10, 1, 0, 3.5, -40);   // Back
+        makeWall(20, 1, 40, 0, 8.5, -20);   // Ceiling
 
-        // 3. THE MOUNTAIN
-        const mtPos = {x: -300, z: -300};
+        // 3. THE CLIMBABLE MOUNTAIN (With a missing side)
+        const mtPos = {x: -200, z: -200};
         const mtLayers = [];
         for(let i=0; i<8; i++) {
             const size = 200 - (i * 25);
-            // We skip the middle of the first few layers so there is actually space inside
+            // We use a "U" shape or just offset the box so one side is open
             const layer = new THREE.Mesh(new THREE.BoxGeometry(size, 10, size), mtMat);
             layer.position.set(mtPos.x, (i * 10) - 1.5, mtPos.z);
+            
+            // This is the "Cut" logic: Move the layers back so the front is open
+            layer.position.z -= (i * 5); 
+            
             scene.add(layer);
             mtLayers.push(layer);
         }
 
-        // 4. THE SECRET ROOM (No more tiny doors)
-        // Just walk into the mountain from the North side (z = -200 range)
-        const interior = new THREE.Mesh(new THREE.BoxGeometry(40, 10, 40), new THREE.MeshStandardMaterial({color: 0x111111}));
-        interior.position.set(mtPos.x, 3.5, mtPos.z);
-        scene.add(interior);
-
-        // 5. LIGHTING
-        scene.add(new THREE.AmbientLight(0x666666));
+        // 4. LIGHTING
+        scene.add(new THREE.AmbientLight(0x777777));
         const sun = new THREE.DirectionalLight(0xffffff, 1);
         sun.position.set(500, 500, 200); scene.add(sun);
 
-        // 6. MOVEMENT
+        // 5. MOVEMENT
         let keys = {};
         window.onkeydown = (e) => keys[e.code] = true;
         window.onkeyup = (e) => keys[e.code] = false;
 
         let yaw = 0, pitch = 0;
-        camera.position.set(0, 2, 20); // Spawn looking at the cave
+        camera.position.set(0, 2, 20); 
 
         function animate() {
             requestAnimationFrame(animate);
@@ -104,26 +94,34 @@
             if (keys['KeyA']) { moveX -= Math.cos(yaw) * spd; moveZ += Math.sin(yaw) * spd; }
             if (keys['KeyD']) { moveX += Math.cos(yaw) * spd; moveZ -= Math.sin(yaw) * spd; }
 
-            camera.position.x += moveX;
-            camera.position.z += moveZ;
+            let nextX = camera.position.x + moveX;
+            let nextZ = camera.position.z + moveZ;
 
-            // CLIMBING
+            // Simple Wall Collision
+            let hitWall = false;
+            walls.forEach(w => {
+                const box = new THREE.Box3().setFromObject(w);
+                if (box.containsPoint(new THREE.Vector3(nextX, camera.position.y, nextZ))) hitWall = true;
+            });
+
+            if (!hitWall) {
+                camera.position.x = nextX;
+                camera.position.z = nextZ;
+            }
+
+            // DYNAMIC HEIGHT (Climbing)
             let groundHeight = 2; 
-            mtLayers.forEach((layer, index) => {
+            mtLayers.forEach(layer => {
                 const box = new THREE.Box3().setFromObject(layer);
                 if (camera.position.x > box.min.x && camera.position.x < box.max.x && 
                     camera.position.z > box.min.z && camera.position.z < box.max.z) {
-                    // Only climb if we are NOT in the very center of the base (the secret room)
-                    const distToCenter = Math.sqrt(Math.pow(camera.position.x - mtPos.x, 2) + Math.pow(camera.position.z - mtPos.z, 2));
-                    if (index === 0 || distToCenter > 30) {
-                        groundHeight = layer.position.y + 7.5; 
-                    }
+                    groundHeight = layer.position.y + 7.5; 
                 }
             });
             camera.position.y += (groundHeight - camera.position.y) * 0.1;
 
-            // Visual Darkening
-            const inCave = (camera.position.z < 0 && Math.abs(camera.position.x) < 10);
+            // Sky Logic
+            const inCave = (camera.position.z < 0 && camera.position.z > -40 && Math.abs(camera.position.x) < 10);
             scene.background = new THREE.Color(inCave ? 0x000000 : 0x87CEEB);
 
             renderer.render(scene, camera);
