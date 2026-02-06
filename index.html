@@ -13,7 +13,7 @@
 </head>
 <body>
     <div id="ui">
-        <h1>EXPLORER_V19</h1>
+        <h1>EXPLORER_V20</h1>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -34,7 +34,7 @@
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(10000, 10000), grassMat);
         grass.rotation.x = -Math.PI/2; grass.position.y = -1.5; scene.add(grass);
 
-        // 2. THE RECTANGLE CAVE
+        // 2. THE DECORATED RECTANGLE CAVE
         const walls = [];
         function makeWall(w, h, d, x, y, z) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), rockMat);
@@ -43,24 +43,33 @@
             walls.push(mesh);
         }
 
-        // Cave Walls (Building a solid box)
         makeWall(1, 10, 40, 10, 3.5, -20);  // Right
         makeWall(1, 10, 40, -10, 3.5, -20); // Left
         makeWall(20, 10, 1, 0, 3.5, -40);   // Back
         makeWall(20, 1, 40, 0, 8.5, -20);   // Ceiling
 
-        // 3. THE CLIMBABLE MOUNTAIN (With a missing side)
+        // Pebbles
+        for(let i=0; i<50; i++) {
+            const p = new THREE.Mesh(new THREE.DodecahedronGeometry(0.2), rockMat);
+            p.position.set(Math.random()*18-9, -1.4, Math.random()*-38-1);
+            scene.add(p);
+        }
+
+        // Spikes (Stalactites)
+        for(let i=0; i<30; i++) {
+            const s = new THREE.Mesh(new THREE.ConeGeometry(0.4, 2, 6), rockMat);
+            s.rotation.x = Math.PI;
+            s.position.set(Math.random()*18-9, 7.5, Math.random()*-38-1);
+            scene.add(s);
+        }
+
+        // 3. THE MOUNTAIN (With Entrance)
         const mtPos = {x: -200, z: -200};
         const mtLayers = [];
         for(let i=0; i<8; i++) {
             const size = 200 - (i * 25);
-            // We use a "U" shape or just offset the box so one side is open
             const layer = new THREE.Mesh(new THREE.BoxGeometry(size, 10, size), mtMat);
             layer.position.set(mtPos.x, (i * 10) - 1.5, mtPos.z);
-            
-            // This is the "Cut" logic: Move the layers back so the front is open
-            layer.position.z -= (i * 5); 
-            
             scene.add(layer);
             mtLayers.push(layer);
         }
@@ -97,7 +106,7 @@
             let nextX = camera.position.x + moveX;
             let nextZ = camera.position.z + moveZ;
 
-            // Simple Wall Collision
+            // Collision
             let hitWall = false;
             walls.forEach(w => {
                 const box = new THREE.Box3().setFromObject(w);
@@ -109,20 +118,24 @@
                 camera.position.z = nextZ;
             }
 
-            // DYNAMIC HEIGHT (Climbing)
+            // CLIMBING / INTERIOR LOGIC
             let groundHeight = 2; 
-            mtLayers.forEach(layer => {
-                const box = new THREE.Box3().setFromObject(layer);
-                if (camera.position.x > box.min.x && camera.position.x < box.max.x && 
-                    camera.position.z > box.min.z && camera.position.z < box.max.z) {
-                    groundHeight = layer.position.y + 7.5; 
-                }
-            });
+            // Only climb if NOT in the "Doorway" (X around -200, Z near the edge of the mountain)
+            const nearMtCenter = (Math.abs(nextX - mtPos.x) < 40 && Math.abs(nextZ - mtPos.z) < 40);
+            
+            if (!nearMtCenter) {
+                mtLayers.forEach(layer => {
+                    const box = new THREE.Box3().setFromObject(layer);
+                    if (nextX > box.min.x && nextX < box.max.x && nextZ > box.min.z && nextZ < box.max.z) {
+                        groundHeight = layer.position.y + 7.5; 
+                    }
+                });
+            }
             camera.position.y += (groundHeight - camera.position.y) * 0.1;
 
             // Sky Logic
             const inCave = (camera.position.z < 0 && camera.position.z > -40 && Math.abs(camera.position.x) < 10);
-            scene.background = new THREE.Color(inCave ? 0x000000 : 0x87CEEB);
+            scene.background = new THREE.Color(inCave || (nearMtCenter && groundHeight < 5) ? 0x000000 : 0x87CEEB);
 
             renderer.render(scene, camera);
         }
