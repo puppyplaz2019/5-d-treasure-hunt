@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D World</title>
+    <title>3D World - Restoration</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; }
         #ui { 
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div id="ui">
-        <h1>EXPLORER_V23</h1>
+        <h1>EXPLORER_V24</h1>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -29,13 +29,28 @@
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
         const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
         const grassMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 });
-        const mtMat = new THREE.MeshStandardMaterial({ color: 0x444444, transparent: true, opacity: 0.9 });
 
-        // 1. LANDSCAPE
+        // 1. ENVIRONMENT (Sun & Clouds)
+        const sun = new THREE.Mesh(new THREE.SphereGeometry(20, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+        sun.position.set(-400, 300, -500); scene.add(sun);
+
+        const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+        for(let i=0; i<100; i++) {
+            const cloud = new THREE.Mesh(new THREE.BoxGeometry(30 + Math.random()*30, 10, 20), cloudMat);
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 200 + Math.random() * 2000;
+            cloud.position.set(Math.cos(angle)*dist, 150 + Math.random()*50, Math.sin(angle)*dist);
+            scene.add(cloud);
+        }
+
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(10000, 10000), grassMat);
-        grass.rotation.x = -Math.PI/2; grass.position.y = -1.5; scene.add(grass);
+        grass.rotation.x = -Math.PI/2; grass.position.y = -1.52; scene.add(grass);
 
-        // 2. RECTANGLE CAVE
+        scene.add(new THREE.AmbientLight(0x777777));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(1, 1, 1); scene.add(dirLight);
+
+        // 2. THE RECTANGLE CAVE
         const walls = [];
         function makeWall(w, h, d, x, y, z, mat = rockMat) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -43,48 +58,34 @@
             scene.add(mesh);
             walls.push(mesh);
         }
-        makeWall(1, 10, 40, 10, 3.5, -20);
-        makeWall(1, 10, 40, -10, 3.5, -20);
-        makeWall(20, 10, 1, 0, 3.5, -40);
-        makeWall(20, 1, 40, 0, 8.5, -20);
-        makeWall(20, 0.5, 40, 0, -1.3, -20, floorMat);
 
-        for(let i=0; i<30; i++) {
+        // Walls
+        makeWall(1, 10, 40, 10, 3.5, -20);         // Right
+        makeWall(1, 10, 15, -10, 3.5, -32.5);     // Left Front
+        makeWall(1, 10, 15, -10, 3.5, -7.5);      // Left Back
+        makeWall(20, 10, 1, 0, 3.5, -40);         // Back
+        makeWall(20, 1, 40, 0, 8.5, -20);         // Ceiling
+        makeWall(20, 0.5, 40, 0, -1.3, -20, floorMat); // Floor
+
+        // Decorations (Spikes & Pebbles)
+        for(let i=0; i<35; i++) {
             const s = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.5, 6), rockMat);
             s.rotation.x = Math.PI;
             s.position.set(Math.random()*18-9, 8, Math.random()*-38-1);
             scene.add(s);
+
+            const p = new THREE.Mesh(new THREE.DodecahedronGeometry(0.2), rockMat);
+            p.position.set(Math.random()*18-9, -1.2, Math.random()*-38-1);
+            scene.add(p);
         }
 
-        // 3. THE CONE MOUNTAIN (Visual Only)
-        const mtPos = {x: -200, z: -200};
-        const mtRadius = 120;
-        const mtHeight = 100;
-        
-        const mountain = new THREE.Mesh(
-            new THREE.ConeGeometry(mtRadius, mtHeight, 16), 
-            mtMat
-        );
-        mountain.position.set(mtPos.x, mtHeight/2 - 1.5, mtPos.z);
-        scene.add(mountain);
-
-        // Entrance guide
-        const entrance = new THREE.Mesh(new THREE.BoxGeometry(10, 15, 2), floorMat);
-        entrance.position.set(mtPos.x, 5, mtPos.z + mtRadius - 2);
-        scene.add(entrance);
-
-        // 4. LIGHTING
-        scene.add(new THREE.AmbientLight(0x777777));
-        const sun = new THREE.DirectionalLight(0xffffff, 1);
-        sun.position.set(500, 500, 200); scene.add(sun);
-
-        // 5. MOVEMENT
+        // 3. MOVEMENT
         let keys = {};
         window.onkeydown = (e) => keys[e.code] = true;
         window.onkeyup = (e) => keys[e.code] = false;
 
         let yaw = 0, pitch = 0;
-        camera.position.set(0, 2, 20); 
+        camera.position.set(0, 2, 10); 
 
         function animate() {
             requestAnimationFrame(animate);
@@ -93,48 +94,39 @@
             if (keys['ArrowRight']) yaw -= 0.05;
             if (keys['ArrowUp']) pitch += 0.04;
             if (keys['ArrowDown']) pitch -= 0.04;
+            pitch = Math.max(-1.2, Math.min(1.2, pitch));
             camera.rotation.set(pitch, yaw, 0, 'YXZ');
 
-            const spd = 0.9;
+            const spd = 0.5;
             let moveX = 0, moveZ = 0;
             if (keys['KeyW']) { moveX -= Math.sin(yaw) * spd; moveZ -= Math.cos(yaw) * spd; }
             if (keys['KeyS']) { moveX += Math.sin(yaw) * spd; moveZ += Math.cos(yaw) * spd; }
             if (keys['KeyA']) { moveX -= Math.cos(yaw) * spd; moveZ += Math.sin(yaw) * spd; }
             if (keys['KeyD']) { moveX += Math.cos(yaw) * spd; moveZ -= Math.sin(yaw) * spd; }
 
-            // Apply Move
-            camera.position.x += moveX;
-            camera.position.z += moveZ;
+            let nextX = camera.position.x + moveX;
+            let nextZ = camera.position.z + moveZ;
 
-            // NEW CLIMBING MATH
-            const dx = camera.position.x - mtPos.x;
-            const dz = camera.position.z - mtPos.z;
-            const dist = Math.sqrt(dx*dx + dz*dz);
-            
-            let targetY = 2;
-            
-            // If we are on the mountain
-            if (dist < mtRadius) {
-                // Check if we are trying to be "inside" (close to the center but on the ground)
-                const nearCenter = dist < 25;
-                const facingEntrance = (camera.position.z > mtPos.z + mtRadius - 20);
+            // Physical Collision Logic
+            let hitWall = false;
+            const playerBox = new THREE.Box3().setFromCenterAndSize(
+                new THREE.Vector3(nextX, 2, nextZ), 
+                new THREE.Vector3(0.5, 2, 0.5)
+            );
 
-                // If you are coming from the entrance or in the very middle, stay down
-                if (nearCenter || (facingEntrance && camera.position.y < 10)) {
-                    targetY = 2;
-                } else {
-                    // Otherwise, climb!
-                    targetY = (1 - (dist / mtRadius)) * mtHeight + 2;
-                }
+            walls.forEach(w => {
+                const wallBox = new THREE.Box3().setFromObject(w);
+                if (playerBox.intersectsBox(wallBox)) hitWall = true;
+            });
+
+            if (!hitWall) {
+                camera.position.x = nextX;
+                camera.position.z = nextZ;
             }
-            
-            // Smooth vertical movement
-            camera.position.y += (targetY - camera.position.y) * 0.1;
 
-            // Blackout logic for interior spaces
+            // Visual Atmosphere
             const inCave = (camera.position.z < 0 && camera.position.z > -40 && Math.abs(camera.position.x) < 10);
-            const hiddenInside = (dist < 20); 
-            scene.background = new THREE.Color(inCave || hiddenInside ? 0x000000 : 0x87CEEB);
+            scene.background = new THREE.Color(inCave ? 0x000000 : 0x87CEEB);
 
             renderer.render(scene, camera);
         }
