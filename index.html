@@ -1,23 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D Forest Estate</title>
+    <title>3D Lakeside Lodge</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; }
-        #ui { 
-            position: absolute; top: 10px; left: 10px; 
-            color: #000; font-family: monospace; pointer-events: none; 
-            background: rgba(255,255,255,0.7); padding: 10px; border: 1px solid #fff;
-        }
+        #ui { position: absolute; top: 10px; left: 10px; color: #000; font-family: monospace; background: rgba(255,255,255,0.7); padding: 10px; }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <h1>EXPLORER_V28</h1>
-    </div>
-
+    <div id="ui"><h1>EXPLORER_V29</h1></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
     <script>
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
@@ -32,17 +24,18 @@
         const leafMat = new THREE.MeshStandardMaterial({ color: 0x1a3300 });
         const pathMat = new THREE.MeshStandardMaterial({ color: 0x3d2b1f });
         const roofMat = new THREE.MeshStandardMaterial({ color: 0x6e2626 });
-        const waterMat = new THREE.MeshStandardMaterial({ color: 0x0044ff, transparent: true, opacity: 0.7 });
-        const rockMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+        const waterMat = new THREE.MeshStandardMaterial({ color: 0x00aaff, transparent: true, opacity: 0.6 });
+        const rockMat = new THREE.MeshStandardMaterial({ color: 0x777777 });
+        const windowMat = new THREE.MeshStandardMaterial({ color: 0xadd8e6, emissive: 0x444422 });
 
-        // 1. ENVIRONMENT
+        // 1. GROUND & PATH
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), grassMat);
         grass.rotation.x = -Math.PI/2; grass.position.y = -1.52; scene.add(grass);
 
         const path = new THREE.Mesh(new THREE.PlaneGeometry(10, 200), pathMat);
         path.rotation.x = -Math.PI/2; path.position.set(0, -1.51, -100); scene.add(path);
 
-        // 2. THE LARGE CABIN
+        // 2. THE CABIN (With Windows & Door)
         const cabin = new THREE.Group();
         cabin.position.set(0, -1.5, -200);
         scene.add(cabin);
@@ -53,38 +46,42 @@
         const roof = new THREE.Mesh(new THREE.ConeGeometry(25, 12, 4), roofMat);
         roof.position.y = 24; roof.rotation.y = Math.PI/4; cabin.add(roof);
 
-        // Interior Floor (so it's not grass inside)
-        const intFloor = new THREE.Mesh(new THREE.PlaneGeometry(28, 23), new THREE.MeshStandardMaterial({color: 0x331100}));
-        intFloor.rotation.x = -Math.PI/2; intFloor.position.y = 0.1; cabin.add(intFloor);
+        const door = new THREE.Mesh(new THREE.BoxGeometry(5, 10, 1), new THREE.MeshStandardMaterial({color: 0x221100}));
+        door.position.set(0, 5, 12.6); cabin.add(door);
 
-        // 3. THE POND
-        const pond = new THREE.Mesh(new THREE.CircleGeometry(25, 32), waterMat);
-        pond.rotation.x = -Math.PI/2;
-        pond.position.set(0, -1.5, -250);
-        scene.add(pond);
-
-        // 4. BETTER CAMPFIRE
-        const fireGroup = new THREE.Group();
-        fireGroup.position.set(25, -1.5, -170);
-        scene.add(fireGroup);
-
-        // Fire Pit Stones
-        for(let i=0; i<8; i++){
-            const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(1), rockMat);
-            stone.position.set(Math.cos(i)*4, 0.5, Math.sin(i)*4);
-            fireGroup.add(stone);
+        // Add Windows
+        for(let i=0; i<2; i++) {
+            const win = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 1), windowMat);
+            win.position.set(i === 0 ? -8 : 8, 10, 12.6);
+            cabin.add(win);
         }
 
-        const flames = [];
-        for(let i=0; i<3; i++) {
-            const f = new THREE.Mesh(new THREE.ConeGeometry(1.5, 5, 6), new THREE.MeshBasicMaterial({color: 0xff4500}));
-            f.position.y = 2;
-            f.position.x = (i - 1) * 1.5;
-            fireGroup.add(f);
-            flames.push(f);
+        // 3. THE DETAILED POND
+        const pondGroup = new THREE.Group();
+        pondGroup.position.set(0, -1.5, -260);
+        scene.add(pondGroup);
+
+        const water = new THREE.Mesh(new THREE.CircleGeometry(25, 32), waterMat);
+        water.rotation.x = -Math.PI/2; water.position.y = 0.1; pondGroup.add(water);
+
+        // Pond Rocks & Reeds
+        for(let i=0; i<20; i++) {
+            const angle = (i/20) * Math.PI * 2;
+            const rx = Math.cos(angle) * 26;
+            const rz = Math.sin(angle) * 26;
+            
+            const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5 + Math.random()), rockMat);
+            rock.position.set(rx, 0.5, rz);
+            pondGroup.add(rock);
+
+            if(i % 2 === 0) {
+                const reed = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 6), leafMat);
+                reed.position.set(rx * 0.9, 3, rz * 0.9);
+                pondGroup.add(reed);
+            }
         }
 
-        // 5. FOREST
+        // 4. CLEAN FOREST (No trees on path/pond)
         function createTree() {
             const tree = new THREE.Group();
             const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, 5), woodMat);
@@ -94,32 +91,46 @@
             return tree;
         }
 
-        for(let i=0; i<200; i++) {
-            const tree = createTree();
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 50 + Math.random() * 300;
-            tree.position.set(Math.cos(angle)*dist, -1.5, Math.sin(angle)*dist - 100);
-            scene.add(tree);
+        for(let i=0; i<250; i++) {
+            const x = Math.random() * 600 - 300;
+            const z = Math.random() * 600 - 450;
+            
+            const onPath = Math.abs(x) < 10 && z < -10 && z > -200;
+            const inPond = Math.sqrt(x*x + (z+260)*(z+260)) < 35;
+            const inCabin = Math.abs(x) < 20 && Math.abs(z+200) < 20;
+
+            if(!onPath && !inPond && !inCabin) {
+                const tree = createTree();
+                tree.position.set(x, -1.5, z);
+                scene.add(tree);
+            }
         }
 
-        // 6. LIGHTING
-        scene.add(new THREE.AmbientLight(0x666666));
+        // 5. CAMPFIRE
+        const fireGroup = new THREE.Group();
+        fireGroup.position.set(25, -1.5, -175);
+        scene.add(fireGroup);
+        const flames = [];
+        for(let i=0; i<3; i++) {
+            const f = new THREE.Mesh(new THREE.ConeGeometry(1, 4, 6), new THREE.MeshBasicMaterial({color: 0xff4400}));
+            f.position.set((i-1)*1.2, 2, 0); fireGroup.add(f); flames.push(f);
+        }
+        const fireLight = new THREE.PointLight(0xffaa00, 2, 30);
+        fireLight.position.y = 5; fireGroup.add(fireLight);
+
+        // 6. LIGHTING & CONTROLS
+        scene.add(new THREE.AmbientLight(0x555555));
         const sun = new THREE.DirectionalLight(0xffffff, 1);
         sun.position.set(100, 200, 100); scene.add(sun);
-        const fireLight = new THREE.PointLight(0xffaa00, 2, 20);
-        fireLight.position.set(25, 5, -170); scene.add(fireLight);
 
-        // 7. MOVEMENT
         let keys = {};
         window.onkeydown = (e) => keys[e.code] = true;
         window.onkeyup = (e) => keys[e.code] = false;
-
         let yaw = 0, pitch = 0;
         camera.position.set(0, 2, 0);
 
         function animate() {
             requestAnimationFrame(animate);
-
             if (keys['ArrowLeft']) yaw += 0.04;
             if (keys['ArrowRight']) yaw -= 0.04;
             if (keys['ArrowUp']) pitch += 0.04;
@@ -127,30 +138,18 @@
             camera.rotation.set(pitch, yaw, 0, 'YXZ');
 
             const spd = 0.8;
-            let moveX = 0, moveZ = 0;
-            if (keys['KeyW']) { moveX -= Math.sin(yaw) * spd; moveZ -= Math.cos(yaw) * spd; }
-            if (keys['KeyS']) { moveX += Math.sin(yaw) * spd; moveZ += Math.cos(yaw) * spd; }
-            if (keys['KeyA']) { moveX -= Math.cos(yaw) * spd; moveZ += Math.sin(yaw) * spd; }
-            if (keys['KeyD']) { moveX += Math.cos(yaw) * spd; moveZ -= Math.sin(yaw) * spd; }
+            if (keys['KeyW']) { camera.position.x -= Math.sin(yaw) * spd; camera.position.z -= Math.cos(yaw) * spd; }
+            if (keys['KeyS']) { camera.position.x += Math.sin(yaw) * spd; camera.position.z += Math.cos(yaw) * spd; }
+            if (keys['KeyA']) { camera.position.x -= Math.cos(yaw) * spd; camera.position.z += Math.sin(yaw) * spd; }
+            if (keys['KeyD']) { camera.position.x += Math.cos(yaw) * spd; camera.position.z -= Math.sin(yaw) * spd; }
 
-            // Cabin Collision (Walls only, Door is open)
-            let nextX = camera.position.x + moveX;
-            let nextZ = camera.position.z + moveZ;
-            
-            const inCabinArea = (nextX > -15 && nextX < 15 && nextZ > -212 && nextZ < -188);
-            const inDoorway = (Math.abs(nextX) < 4 && nextZ > -190);
-
-            if (!inCabinArea || inDoorway) {
-                camera.position.x = nextX;
-                camera.position.z = nextZ;
-            }
-
-            // Animate Flames
+            // Flame flicker
             flames.forEach((f, i) => {
-                f.scale.y = 0.8 + Math.sin(Date.now() * 0.01 + i) * 0.4;
-                f.material.color.setHex(Math.random() > 0.5 ? 0xff4500 : 0xff8800);
+                f.scale.y = 1 + Math.sin(Date.now() * 0.01 + i) * 0.3;
+                f.position.y = 2 + Math.sin(Date.now() * 0.005) * 0.2;
             });
-            fireLight.intensity = 1.5 + Math.sin(Date.now() * 0.02) * 0.5;
+            fireLight.intensity = 1.5 + Math.random() * 0.5;
+            water.rotation.z += 0.005; // Gentle ripple effect
 
             renderer.render(scene, camera);
         }
