@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D Estate V40 - Directional Dash</title>
+    <title>3D Estate V41 - Restored World</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; }
         #ui { position: absolute; top: 10px; left: 10px; color: #000; font-family: monospace; background: rgba(255,255,255,0.8); padding: 15px; border-radius: 8px; pointer-events: none; border: 2px solid #2d5a27; }
@@ -12,70 +12,202 @@
 </head>
 <body>
     <div id="ui">
-        <h2 style="margin:0">ESTATE_V40</h2>
+        <h2 style="margin:0">ESTATE_V41</h2>
         <p>Chests Found: <span id="score">0</span>/10</p>
         <p id="dash-ui">DASHING!!</p>
-        <p><b>NEW:</b> Double-Tap W, A, S, or D to Dash!</p>
+        <p><b>FIXED:</b> World Visibility & Dash</p>
+        <p>Press 'R' to Reset if lost!</p>
     </div>
     <div id="win">YOU FOUND IT ALL!<br><button onclick="location.reload()">RESTART</button></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 5000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        window.onload = () => {
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 2000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
 
-        // --- ENVIRONMENT SETUP ---
-        const woodMat = new THREE.MeshStandardMaterial({ color: 0x5d3a1a });
-        const leafMat = new THREE.MeshStandardMaterial({ color: 0x1a4a15 });
-        const waterMat = new THREE.MeshStandardMaterial({ color: 0x00ccff, transparent: true, opacity: 0.6 });
-        const glitterMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+            // --- MATERIALS ---
+            const grassMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27 });
+            const woodMat = new THREE.MeshStandardMaterial({ color: 0x5d3a1a });
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x1a4a15 });
+            const waterMat = new THREE.MeshStandardMaterial({ color: 0x00ccff, transparent: true, opacity: 0.6 });
+            const rockMat = new THREE.MeshStandardMaterial({ color: 0x777777 });
+            const glitterMat = new THREE.MeshBasicMaterial({ color: 0xffd700 });
 
-        // Sky & Lighting
-        const sun = new THREE.Mesh(new THREE.SphereGeometry(15, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
-        sun.position.set(200, 250, -300); scene.add(sun);
-        scene.add(new THREE.AmbientLight(0x777777));
-        const sunlight = new THREE.DirectionalLight(0xffffff, 1);
-        sunlight.position.set(100, 100, 100); scene.add(sunlight);
+            // 1. SKY & LIGHTING
+            const sun = new THREE.Mesh(new THREE.SphereGeometry(15, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+            sun.position.set(200, 250, -300); scene.add(sun);
+            scene.add(new THREE.AmbientLight(0x777777));
+            const sunlight = new THREE.DirectionalLight(0xffffff, 1.2);
+            sunlight.position.set(100, 100, 100); scene.add(sunlight);
 
-        // Clouds
-        const clouds = [];
-        for(let i=0; i<12; i++) {
-            const group = new THREE.Group();
-            for(let j=0; j<4; j++) {
-                const p = new THREE.Mesh(new THREE.DodecahedronGeometry(6), new THREE.MeshLambertMaterial({color:0xffffff, transparent:true, opacity:0.8}));
-                p.position.set(j*6, Math.random()*3, Math.random()*3); group.add(p);
+            const clouds = [];
+            for(let i=0; i<15; i++) {
+                const group = new THREE.Group();
+                for(let j=0; j<4; j++) {
+                    const p = new THREE.Mesh(new THREE.DodecahedronGeometry(6), new THREE.MeshLambertMaterial({color:0xffffff, transparent:true, opacity:0.8}));
+                    p.position.set(j*6, Math.random()*3, Math.random()*3); group.add(p);
+                }
+                group.position.set(Math.random()*1000-500, 150 + Math.random()*50, Math.random()*1000-500);
+                scene.add(group); clouds.push(group);
             }
-            group.position.set(Math.random()*1000-500, 180, Math.random()*1000-500);
-            scene.add(group); clouds.push(group);
-        }
 
-        // Ground
-        const grass = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x2d5a27 }));
-        grass.rotation.x = -Math.PI/2; grass.position.y = -1.5; scene.add(grass);
+            // 2. GROUND & POND
+            const grass = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), grassMat);
+            grass.rotation.x = -Math.PI/2; grass.position.y = -1.5; scene.add(grass);
 
-        // --- STRUCTURES ---
-        const cabinWalls = [];
-        function makeWall(w, h, d, x, y, z) {
-            const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), woodMat);
-            mesh.position.set(x, y, z); scene.add(mesh);
-            cabinWalls.push(new THREE.Box3().setFromObject(mesh));
-        }
-        makeWall(30, 15, 2, 0, 6, -100); makeWall(2, 15, 30, -15, 6, -85); makeWall(2, 15, 30, 15, 6, -85);
-        makeWall(11, 15, 2, -9.5, 6, -70); makeWall(11, 15, 2, 9.5, 6, -70);
-        const roof = new THREE.Mesh(new THREE.ConeGeometry(24, 12, 4), new THREE.MeshStandardMaterial({color: 0x4a1a1a}));
-        roof.position.set(0, 19, -85); roof.rotation.y = Math.PI/4; scene.add(roof);
+            const pondPos = { x: 45, z: -45 };
+            const water = new THREE.Mesh(new THREE.CircleGeometry(15, 32), waterMat);
+            water.rotation.x = -Math.PI/2; water.position.set(pondPos.x, -0.7, pondPos.z); scene.add(water);
 
-        const pondPos = { x: 45, z: -45 };
-        const water = new THREE.Mesh(new THREE.CircleGeometry(15, 32), waterMat);
-        water.rotation.x = -Math.PI/2; water.position.set(pondPos.x, -0.7, pondPos.z); scene.add(water);
+            const pondRocks = [];
+            for(let i=0; i<30; i++) {
+                const angle = (i/30) * Math.PI * 2;
+                const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(2), rockMat);
+                const rx = Math.cos(angle)*17 + pondPos.x; const rz = Math.sin(angle)*17 + pondPos.z;
+                stone.position.set(rx, -1.0, rz); scene.add(stone); pondRocks.push({x: rx, z: rz, r: 2.2});
+            }
 
-        const trees = [];
-        for(let i=0; i<80; i++) {
-            const tx = Math.random() * 600 - 300, tz = Math.random() * 600 - 300;
-            if (Math.abs(tx) > 25 || (tz > -50 || tz < -120)) {
-                const treeGroup = new THREE.Group();
-                treeGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(
+            // 3. CABIN (WITH ROOF)
+            const cabinWalls = [];
+            function makeWall(w, h, d, x, y, z) {
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), woodMat);
+                mesh.position.set(x, y, z); scene.add(mesh);
+                cabinWalls.push(new THREE.Box3().setFromObject(mesh));
+            }
+            makeWall(30, 15, 2, 0, 6, -100); 
+            makeWall(2, 15, 30, -15, 6, -85); 
+            makeWall(2, 15, 30, 15, 6, -85);
+            makeWall(11, 15, 2, -9.5, 6, -70); 
+            makeWall(11, 15, 2, 9.5, 6, -70);
+            
+            const roof = new THREE.Mesh(new THREE.ConeGeometry(24, 12, 4), new THREE.MeshStandardMaterial({color: 0x4a1a1a}));
+            roof.position.set(0, 19, -85); roof.rotation.y = Math.PI/4; scene.add(roof);
+
+            // 4. TREES (WITH LEAVES)
+            const trees = [];
+            for(let i=0; i<80; i++) {
+                const tx = Math.random() * 800 - 400, tz = Math.random() * 800 - 400;
+                if (Math.abs(tx) > 25 || (tz > -50 || tz < -120)) {
+                    const treeGroup = new THREE.Group();
+                    treeGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 8), woodMat));
+                    for(let j=0; j<3; j++) {
+                        const l = new THREE.Mesh(new THREE.ConeGeometry(5-j, 6, 8), leafMat);
+                        l.position.y = 4 + (j*3); treeGroup.add(l);
+                    }
+                    treeGroup.position.set(tx, 2.5, tz); scene.add(treeGroup);
+                    trees.push({ x: tx, z: tz, r: 2.5 });
+                }
+            }
+
+            // 5. CHESTS & PARTICLES
+            let score = 0;
+            const chests = [];
+            for(let i=0; i<10; i++){
+                const chest = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({color:0xffd700, emissive:0xffaa00}));
+                chest.position.set(Math.random()*600-300, -0.5, Math.random()*600-300);
+                scene.add(chest); chests.push(chest);
+            }
+
+            const particles = [];
+            function spawnGlitter(pos, isDashing) {
+                const count = isDashing ? 5 : 1;
+                for(let i=0; i<count; i++) {
+                    const p = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), glitterMat);
+                    p.position.copy(pos).add(new THREE.Vector3((Math.random()-0.5)*2, -1, (Math.random()-0.5)*2));
+                    scene.add(p);
+                    particles.push({ mesh: p, life: 1.0, vel: new THREE.Vector3((Math.random()-0.5)*0.05, 0.05, (Math.random()-0.5)*0.05) });
+                }
+            }
+
+            // 6. INPUT & PHYSICS
+            let keys = {};
+            let lastPress = { KeyW: 0, KeyA: 0, KeyS: 0, KeyD: 0 };
+            let dashTimer = 0;
+            
+            window.onkeydown = (e) => {
+                const now = Date.now();
+                if (e.code === 'KeyR') camera.position.set(0, 2, 20); // Reset
+                if (['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) {
+                    if (now - lastPress[e.code] < 300) dashTimer = now + 1000;
+                    lastPress[e.code] = now;
+                }
+                keys[e.code] = true;
+            };
+            window.onkeyup = (e) => keys[e.code] = false;
+
+            let yaw = 0, pitch = 0, vy = 0, isJumping = false;
+            camera.position.set(0, 2, 20);
+
+            function animate() {
+                requestAnimationFrame(animate);
+                const now = Date.now();
+                const isDashing = now < dashTimer;
+                document.getElementById('dash-ui').style.display = isDashing ? 'block' : 'none';
+
+                // Look
+                if (keys['ArrowLeft']) yaw += 0.04;
+                if (keys['ArrowRight']) yaw -= 0.04;
+                if (keys['ArrowUp']) pitch = Math.min(1.4, pitch + 0.04);
+                if (keys['ArrowDown']) pitch = Math.max(-1.4, pitch - 0.04);
+                camera.rotation.set(pitch, yaw, 0, 'YXZ');
+                camera.fov = isDashing ? 90 : 75; camera.updateProjectionMatrix();
+
+                // Environment
+                clouds.forEach(c => { c.position.x += 0.1; if(c.position.x > 600) c.position.x = -600; });
+
+                // Jump
+                if (keys['Space'] && !isJumping) { vy = 0.45; isJumping = true; }
+                if (isJumping) {
+                    camera.position.y += vy; vy -= 0.02;
+                    if (camera.position.y <= 2) { camera.position.y = 2; isJumping = false; vy = 0; }
+                }
+
+                // Move
+                const distToPond = Math.sqrt(Math.pow(camera.position.x - pondPos.x, 2) + Math.pow(camera.position.z - pondPos.z, 2));
+                let speed = (distToPond < 15) ? 0.3 : 0.8;
+                if (isDashing) speed *= 2.5;
+
+                let nx = camera.position.x, nz = camera.position.z;
+                let moved = false;
+                if (keys['KeyW']) { nx -= Math.sin(yaw) * speed; nz -= Math.cos(yaw) * speed; moved = true; }
+                if (keys['KeyS']) { nx += Math.sin(yaw) * speed; nz += Math.cos(yaw) * speed; moved = true; }
+                if (keys['KeyA']) { nx -= Math.cos(yaw) * speed; nz += Math.sin(yaw) * speed; moved = true; }
+                if (keys['KeyD']) { nx += Math.cos(yaw) * speed; nz -= Math.sin(yaw) * speed; moved = true; }
+
+                if (moved) spawnGlitter(camera.position, isDashing);
+
+                // Boundary & Collision
+                let blocked = (Math.abs(nx) > 1000 || Math.abs(nz) > 1000);
+                const pPos = new THREE.Vector3(nx, camera.position.y, nz);
+                if (camera.position.y < 5) {
+                    cabinWalls.forEach(box => { if(box.containsPoint(pPos)) blocked = true; });
+                    trees.forEach(t => { if(Math.sqrt(Math.pow(nx-t.x,2)+Math.pow(nz-t.z,2)) < t.r) blocked = true; });
+                    pondRocks.forEach(r => { if(Math.sqrt(Math.pow(nx-r.x,2)+Math.pow(nz-r.z,2)) < r.r) blocked = true; });
+                }
+
+                if (!blocked) { camera.position.x = nx; camera.position.z = nz; }
+
+                // Particles & Chests
+                for (let i = particles.length-1; i >= 0; i--) {
+                    const p = particles[i]; p.life -= 0.02; p.mesh.position.add(p.vel); p.mesh.scale.setScalar(p.life);
+                    if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
+                }
+                chests.forEach(c => {
+                    if(c.visible && camera.position.distanceTo(c.position) < 5) {
+                        c.visible = false; score++; document.getElementById('score').innerText = score;
+                        if(score === 10) document.getElementById('win').style.display = 'block';
+                    }
+                });
+
+                renderer.render(scene, camera);
+            }
+            animate();
+        };
+    </script>
+</body>
+</html>
