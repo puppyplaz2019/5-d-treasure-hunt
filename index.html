@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D Estate V36 - Jumping</title>
+    <title>3D Estate V37 - Clouds & Sun</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; }
         #ui { position: absolute; top: 10px; left: 10px; color: #000; font-family: monospace; background: rgba(255,255,255,0.8); padding: 15px; border-radius: 8px; pointer-events: none; border: 2px solid #2d5a27; }
@@ -11,14 +11,11 @@
 </head>
 <body>
     <div id="ui">
-        <h2 style="margin:0">ESTATE_V36</h2>
+        <h2 style="margin:0">ESTATE_V37</h2>
         <p>Chests Found: <span id="score">0</span>/10</p>
-        <p><b>NEW:</b> Press SPACE to Jump!</p>
+        <p><b>RESTORED:</b> Sun & Moving Clouds</p>
     </div>
-    <div id="win">
-        YOU FOUND IT ALL!<br>
-        <button onclick="location.reload()">RESTART HUNT</button>
-    </div>
+    <div id="win">YOU FOUND IT ALL!<br><button onclick="location.reload()">RESTART</button></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -35,30 +32,54 @@
         const waterMat = new THREE.MeshStandardMaterial({ color: 0x00ccff, transparent: true, opacity: 0.6 });
         const rockMat = new THREE.MeshStandardMaterial({ color: 0x777777 });
 
-        // 1. GROUND
+        // 1. SKY ELEMENTS (Sun & Clouds)
+        const sun = new THREE.Mesh(
+            new THREE.SphereGeometry(15, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xffff00 })
+        );
+        sun.position.set(200, 250, -300);
+        scene.add(sun);
+
+        const clouds = [];
+        function createCloud() {
+            const group = new THREE.Group();
+            const count = 3 + Math.floor(Math.random() * 4);
+            for(let i=0; i<count; i++) {
+                const puff = new THREE.Mesh(
+                    new THREE.DodecahedronGeometry(5 + Math.random()*5),
+                    new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })
+                );
+                puff.position.set(i*5, Math.random()*2, Math.random()*2);
+                group.add(puff);
+            }
+            group.position.set(Math.random()*800-400, 150 + Math.random()*50, Math.random()*800-400);
+            scene.add(group);
+            clouds.push(group);
+        }
+        for(let i=0; i<15; i++) createCloud();
+
+        // 2. ENVIRONMENT
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), grassMat);
         grass.rotation.x = -Math.PI/2; grass.position.y = -1.5; scene.add(grass);
 
-        // 2. THE POND
+        // 3. POND
         const pondPos = { x: 45, z: -45 };
-        const pondGroup = new THREE.Group();
-        pondGroup.position.set(pondPos.x, -1.5, pondPos.z);
-        scene.add(pondGroup);
         const water = new THREE.Mesh(new THREE.CircleGeometry(15, 32), waterMat);
-        water.rotation.x = -Math.PI/2; water.position.y = 0.8; pondGroup.add(water);
+        water.rotation.x = -Math.PI/2; water.position.set(pondPos.x, -0.7, pondPos.z);
+        scene.add(water);
 
         const pondRocks = [];
         for(let i=0; i<30; i++) {
             const angle = (i/30) * Math.PI * 2;
             const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(2), rockMat);
-            const x = Math.cos(angle)*17;
-            const z = Math.sin(angle)*17;
-            stone.position.set(x, 0.5, z);
-            pondGroup.add(stone);
-            pondRocks.push({x: x + pondPos.x, z: z + pondPos.z, r: 2});
+            const x = Math.cos(angle)*17 + pondPos.x;
+            const z = Math.sin(angle)*17 + pondPos.z;
+            stone.position.set(x, -1.0, z);
+            scene.add(stone);
+            pondRocks.push({x: x, z: z, r: 2});
         }
 
-        // 3. CABIN
+        // 4. CABIN & TREES (Collision Data)
         const cabinWalls = [];
         function makeWall(w, h, d, x, y, z) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), woodMat);
@@ -74,112 +95,93 @@
         const roof = new THREE.Mesh(new THREE.ConeGeometry(24, 12, 4), new THREE.MeshStandardMaterial({color: 0x4a1a1a}));
         roof.position.set(0, 19, -85); roof.rotation.y = Math.PI/4; scene.add(roof);
 
-        // 4. TREES
         const trees = [];
         for(let i=0; i<80; i++) {
-            const tx = Math.random() * 400 - 200;
-            const tz = Math.random() * 400 - 200;
+            const tx = Math.random() * 600 - 300;
+            const tz = Math.random() * 600 - 300;
             if (Math.abs(tx) > 25 || (tz > -50 || tz < -120)) {
                 const treeGroup = new THREE.Group();
-                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 8), woodMat);
-                treeGroup.add(trunk);
+                treeGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 8), woodMat));
                 for(let j=0; j<3; j++) {
-                    const leaves = new THREE.Mesh(new THREE.ConeGeometry(5 - j, 6, 8), leafMat);
-                    leaves.position.y = 4 + (j * 3); treeGroup.add(leaves);
+                    const l = new THREE.Mesh(new THREE.ConeGeometry(5-j, 6, 8), leafMat);
+                    l.position.y = 4 + (j*3); treeGroup.add(l);
                 }
                 treeGroup.position.set(tx, 2.5, tz); scene.add(treeGroup);
                 trees.push({ x: tx, z: tz, r: 2 });
             }
         }
 
-        // 5. CHESTS
+        // 5. LIGHTING & CHESTS
+        scene.add(new THREE.AmbientLight(0x777777));
+        const sunlight = new THREE.DirectionalLight(0xffffff, 1);
+        sunlight.position.set(100, 100, 100); scene.add(sunlight);
+
         let score = 0;
         const chests = [];
         for(let i=0; i<10; i++){
             const chest = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({color:0xffd700, emissive:0xffaa00}));
-            chest.position.set(Math.random()*360-180, -0.5, Math.random()*360-180);
+            chest.position.set(Math.random()*400-200, -0.5, Math.random()*400-200);
             scene.add(chest);
             chests.push(chest);
         }
 
-        scene.add(new THREE.AmbientLight(0x777777));
-        const sun = new THREE.DirectionalLight(0xffffff, 1);
-        sun.position.set(100, 100, 100); scene.add(sun);
-
-        // 6. CONTROLS & PHYSICS
+        // 6. ANIMATION & INPUT
         let keys = {};
         window.onkeydown = (e) => keys[e.code] = true;
         window.onkeyup = (e) => keys[e.code] = false;
-        
-        let yaw = 0, pitch = 0;
-        let vy = 0;           // Vertical Velocity
-        let isJumping = false;
+        let yaw = 0, pitch = 0, vy = 0, isJumping = false;
         camera.position.set(0, 2, 20);
 
         function animate() {
             requestAnimationFrame(animate);
 
+            // Rotation
             if (keys['ArrowLeft']) yaw += 0.04;
-            if (keys['ArrowRight']) yaw -= 0.05;
+            if (keys['ArrowRight']) yaw -= 0.04;
             if (keys['ArrowUp']) pitch = Math.min(1.4, pitch + 0.04);
             if (keys['ArrowDown']) pitch = Math.max(-1.4, pitch - 0.04);
             camera.rotation.set(pitch, yaw, 0, 'YXZ');
 
+            // Sky Motion
+            clouds.forEach(c => {
+                c.position.x += 0.05;
+                if(c.position.x > 500) c.position.x = -500;
+            });
+            sun.scale.setScalar(1 + Math.sin(Date.now()*0.001)*0.05);
+
+            // Physics
             const distToPond = Math.sqrt(Math.pow(camera.position.x - pondPos.x, 2) + Math.pow(camera.position.z - pondPos.z, 2));
-            let currentSpd = (distToPond < 15) ? 0.25 : 0.8;
+            let speed = (distToPond < 15) ? 0.25 : 0.8;
 
-            // --- JUMPING LOGIC ---
-            if (keys['Space'] && !isJumping) {
-                vy = (distToPond < 15) ? 0.25 : 0.45; // Lower jump force in water
-                isJumping = true;
-            }
-
+            if (keys['Space'] && !isJumping) { vy = 0.45; isJumping = true; }
             if (isJumping) {
                 camera.position.y += vy;
-                vy -= 0.02; // Gravity
-                
-                const groundLevel = (distToPond < 15) ? 2 + Math.sin(Date.now() * 0.005) * 0.2 : 2;
-                
-                if (camera.position.y <= groundLevel) {
-                    camera.position.y = groundLevel;
-                    isJumping = false;
-                    vy = 0;
-                }
-            } else if (distToPond < 15) {
-                camera.position.y = 2 + Math.sin(Date.now() * 0.005) * 0.2; // Float
+                vy -= 0.02; 
+                if (camera.position.y <= 2) { camera.position.y = 2; isJumping = false; }
             }
 
             let nextX = camera.position.x;
             let nextZ = camera.position.z;
+            if (keys['KeyW']) { nextX -= Math.sin(yaw) * speed; nextZ -= Math.cos(yaw) * speed; }
+            if (keys['KeyS']) { nextX += Math.sin(yaw) * speed; nextZ += Math.cos(yaw) * speed; }
+            if (keys['KeyA']) { nextX -= Math.cos(yaw) * speed; nextZ += Math.sin(yaw) * speed; }
+            if (keys['KeyD']) { nextX += Math.cos(yaw) * speed; nextZ -= Math.sin(yaw) * speed; }
 
-            if (keys['KeyW']) { nextX -= Math.sin(yaw) * currentSpd; nextZ -= Math.cos(yaw) * currentSpd; }
-            if (keys['KeyS']) { nextX += Math.sin(yaw) * currentSpd; nextZ += Math.cos(yaw) * currentSpd; }
-            if (keys['KeyA']) { nextX -= Math.cos(yaw) * currentSpd; nextZ += Math.sin(yaw) * currentSpd; }
-            if (keys['KeyD']) { nextX += Math.cos(yaw) * currentSpd; nextZ -= Math.sin(yaw) * currentSpd; }
-
+            // Collision Check
             let blocked = false;
             const playerPos = new THREE.Vector3(nextX, camera.position.y, nextZ);
-
-            // Height-based Collision: If jumping high enough, ignore obstacles
             if (camera.position.y < 4.5) {
                 cabinWalls.forEach(box => { if(box.containsPoint(playerPos)) blocked = true; });
-                trees.forEach(t => {
-                    if (Math.sqrt(Math.pow(nextX - t.x, 2) + Math.pow(nextZ - t.z, 2)) < t.r) blocked = true;
-                });
-                pondRocks.forEach(r => {
-                    if (Math.sqrt(Math.pow(nextX - r.x, 2) + Math.pow(nextZ - r.z, 2)) < r.r) blocked = true;
-                });
+                trees.forEach(t => { if(Math.sqrt(Math.pow(nextX-t.x, 2) + Math.pow(nextZ-t.z, 2)) < t.r) blocked = true; });
+                pondRocks.forEach(r => { if(Math.sqrt(Math.pow(nextX-r.x, 2) + Math.pow(nextZ-r.z, 2)) < r.r) blocked = true; });
             }
 
-            if (!blocked) {
-                camera.position.x = nextX;
-                camera.position.z = nextZ;
-            }
+            if (!blocked) { camera.position.x = nextX; camera.position.z = nextZ; }
 
+            // Score
             chests.forEach(c => {
                 if(c.visible && camera.position.distanceTo(c.position) < 5) {
-                    c.visible = false;
-                    score++;
+                    c.visible = false; score++;
                     document.getElementById('score').innerText = score;
                     if(score === 10) document.getElementById('win').style.display = 'block';
                 }
