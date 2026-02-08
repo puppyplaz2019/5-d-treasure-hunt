@@ -1,32 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Estate V56 - Physics & Precision</title>
+    <title>Estate V57 - Absolute Control</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; pointer-events: none; border: 2px solid #3498db; }
-        #overlay { position: absolute; width: 100%; height: 100%; background: radial-gradient(circle, #2c3e50, #000); color: #3498db; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
-        .btn { padding: 15px 40px; font-size: 22px; cursor: pointer; background: #3498db; border: none; font-weight: bold; color: white; border-radius: 50px; box-shadow: 0 4px #2980b9; }
-        .btn:active { box-shadow: 0 0 #2980b9; transform: translateY(4px); }
-        .stat { color: #f1c40f; font-weight: bold; }
-    </small>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 10px; border: 2px solid #e74c3c; pointer-events: none; }
+        #overlay { position: absolute; width: 100%; height: 100%; background: #2c3e50; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        .btn { padding: 15px 40px; font-size: 20px; cursor: pointer; background: #e74c3c; border: none; color: white; font-weight: bold; border-radius: 5px; }
+        .stat { color: #2ecc71; font-weight: bold; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <h1>ESTATE V56</h1>
-        <p>Collision & Mouse-Building Enabled</p>
-        <button class="btn" onclick="start()">LOAD WORLD</button>
+        <h1>ESTATE V57</h1>
+        <p>Fixed Controls & 'R' to Delete</p>
+        <button class="btn" onclick="start()">START GAME</button>
     </div>
 
     <div id="ui">
-        <b>W / S</b>: Forward / Back | <b>A / D</b>: Turn<br>
-        <b>E</b>: Enter/Exit Car | <b>B</b>: Toggle Build Mode<br>
-        <b>MOUSE CLICK</b>: Place Block at Cursor<br>
+        <b>W / S</b>: Forward / Back | <b>A / D</b>: Turn Left / Right<br>
+        <b>E</b>: Drive/Exit | <b>B</b>: Build Mode<br>
+        <b>CLICK</b>: Place Block | <b>R</b>: Delete Block<br>
         <hr>
-        Mode: <span id="mode" class="stat">Walking</span> | Building: <span id="bState" class="stat">OFF</span>
+        Mode: <span id="mode" class="stat">Walking</span> | Build: <span id="bState" class="stat">OFF</span>
     </div>
+
+    <div id="crosshair"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -46,6 +47,7 @@
             raycaster = new THREE.Raycaster();
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 4, 10);
             
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -53,14 +55,15 @@
 
             scene.add(new THREE.AmbientLight(0xffffff, 1));
 
-            // Ground Meshes (We add these to buildableSurface so we can click on them)
-            const forestFloor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshBasicMaterial({color: 0x27ae60}));
-            forestFloor.rotation.x = -Math.PI/2; forestFloor.position.set(-500, 0, 0); 
-            scene.add(forestFloor); buildableSurface.push(forestFloor);
+            // Biomes
+            const floorGeo = new THREE.PlaneGeometry(1000, 1000);
+            const forest = new THREE.Mesh(floorGeo, new THREE.MeshBasicMaterial({color: 0x27ae60}));
+            forest.rotation.x = -Math.PI/2; forest.position.set(-500, 0, 0); 
+            scene.add(forest); buildableSurface.push(forest);
 
-            const desertFloor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshBasicMaterial({color: 0xf1c40f}));
-            desertFloor.rotation.x = -Math.PI/2; desertFloor.position.set(500, 0, 0); 
-            scene.add(desertFloor); buildableSurface.push(desertFloor);
+            const desert = new THREE.Mesh(floorGeo, new THREE.MeshBasicMaterial({color: 0xf1c40f}));
+            desert.rotation.x = -Math.PI/2; desert.position.set(500, 0, 0); 
+            scene.add(desert); buildableSurface.push(desert);
 
             createVillage();
             createNature();
@@ -71,6 +74,7 @@
                 keys[e.code] = true; 
                 if(e.code === 'KeyB') toggleBuild();
                 if(e.code === 'KeyE') toggleDrive();
+                if(e.code === 'KeyR') deleteBlock(); // New 'R' key listener
             });
             window.addEventListener('keyup', e => keys[e.code] = false);
             window.addEventListener('mousemove', (e) => {
@@ -83,56 +87,69 @@
         }
 
         function createVillage() {
-            const hMat = new THREE.MeshBasicMaterial({color: 0x95a5a6});
+            const mat = new THREE.MeshBasicMaterial({color: 0x7f8c8d});
             for(let i=0; i<3; i++) {
-                const house = new THREE.Mesh(new THREE.BoxGeometry(10, 8, 10), hMat);
-                house.position.set(-30, 4, i * -25);
+                const house = new THREE.Mesh(new THREE.BoxGeometry(10, 8, 10), mat);
+                house.position.set(-20, 4, i * -25);
                 scene.add(house);
-                objects.push(new THREE.Box3().setFromObject(house));
+                objects.push(house); // Add to collision list
             }
         }
 
         function createNature() {
-            const tMat = new THREE.MeshBasicMaterial({color: 0x145a32});
-            for(let i=0; i<20; i++) {
-                const tree = new THREE.Mesh(new THREE.BoxGeometry(2, 12, 2), tMat);
-                tree.position.set(-Math.random()*100 - 30, 6, (Math.random()-0.5)*150);
+            for(let i=0; i<15; i++) {
+                const tree = new THREE.Mesh(new THREE.BoxGeometry(2, 10, 2), new THREE.MeshBasicMaterial({color: 0x1b5e20}));
+                tree.position.set(-Math.random()*100 - 40, 5, (Math.random()-0.5)*100);
                 scene.add(tree);
-                objects.push(new THREE.Box3().setFromObject(tree));
+                objects.push(tree);
             }
         }
 
         function createCar() {
             car = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 7), new THREE.MeshBasicMaterial({color: 0xc0392b}));
+            const body = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 7), new THREE.MeshBasicMaterial({color: 0xe74c3c}));
             body.position.y = 1; car.add(body);
-            car.position.set(10, 0, 15);
+            car.position.set(15, 0, 15);
             scene.add(car);
         }
 
         function createPet() {
-            pet = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({color: 0x3498db}));
+            pet = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({color: 0xf1c40f}));
             scene.add(pet);
         }
 
         function toggleBuild() {
             buildMode = !buildMode;
-            document.getElementById('bState').innerText = buildMode ? "ON (CLICK GROUND)" : "OFF";
+            document.getElementById('bState').innerText = buildMode ? "ON" : "OFF";
+            document.getElementById('crosshair').style.borderColor = buildMode ? "lime" : "white";
         }
 
         function placeBlock() {
             if(!buildMode) return;
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(buildableSurface);
-            
             if (intersects.length > 0) {
-                const point = intersects[0].point;
-                const b = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), new THREE.MeshBasicMaterial({color: 0xffffff, wireframe: false}));
-                b.position.set(point.x, point.y + 1, point.z);
+                const p = intersects[0].point;
+                const b = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                b.position.set(Math.round(p.x), p.y + 1, Math.round(p.z)); // Grid-snapping for cleaner builds
                 scene.add(b);
-                // Add the new block to buildable surface so we can stack them!
                 buildableSurface.push(b);
-                objects.push(new THREE.Box3().setFromObject(b));
+                objects.push(b);
+            }
+        }
+
+        function deleteBlock() {
+            if(!buildMode) return;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(objects);
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                // Don't delete houses or floor, only user blocks
+                if(obj.geometry.type === "BoxGeometry" && obj.material.color.getHex() === 0xffffff) {
+                    scene.remove(obj);
+                    objects = objects.filter(o => o !== obj);
+                    buildableSurface = buildableSurface.filter(s => s !== obj);
+                }
             }
         }
 
@@ -143,52 +160,51 @@
                 document.getElementById('mode').innerText = "Walking";
             } else if(camera.position.distanceTo(car.position) < 10) {
                 isDriving = true;
-                playerYaw = car.rotation.y + Math.PI;
                 document.getElementById('mode').innerText = "Driving";
             }
-        }
-
-        function checkCollision(nextPos) {
-            const playerBox = new THREE.Box3().setFromCenterAndSize(nextPos, new THREE.Vector3(2, 4, 2));
-            for(let i=0; i < objects.length; i++) {
-                if(playerBox.intersectsBox(objects[i])) return true;
-            }
-            return false;
         }
 
         function loop() {
             requestAnimationFrame(loop);
 
-            // A/D Turning
             if(keys['KeyA']) playerYaw += 0.05;
             if(keys['KeyD']) playerYaw -= 0.05;
 
-            const moveSpeed = isDriving ? 1.5 : (keys['ShiftLeft'] ? 0.8 : 0.4);
-            // FIXED LAND CONTROLS: Recalibrated directions
-            let dx = Math.sin(playerYaw) * moveSpeed;
-            let dz = Math.cos(playerYaw) * moveSpeed;
+            const speed = isDriving ? 1.4 : (keys['ShiftLeft'] ? 0.8 : 0.4);
+            
+            // --- DIRECTIONAL MATH FIX ---
+            const moveDir = new THREE.Vector3();
+            camera.getWorldDirection(moveDir);
+            moveDir.y = 0; // Keep movement on the ground
+            moveDir.normalize();
 
             if(isDriving) {
-                car.rotation.y = playerYaw - Math.PI; 
-                if(keys['KeyW']) { car.position.x += dx; car.position.z += dz; }
-                if(keys['KeyS']) { car.position.x -= dx; car.position.z -= dz; }
-                
+                car.rotation.y = playerYaw - Math.PI;
+                if(keys['KeyW']) { car.position.add(moveDir.multiplyScalar(speed)); }
+                if(keys['KeyS']) { car.position.sub(moveDir.multiplyScalar(speed)); }
                 camera.position.set(car.position.x - Math.sin(playerYaw)*15, 8, car.position.z - Math.cos(playerYaw)*15);
                 camera.lookAt(car.position);
             } else {
-                let nextX = camera.position.x;
-                let nextZ = camera.position.z;
+                let nextPos = camera.position.clone();
+                if(keys['KeyW']) nextPos.add(moveDir.multiplyScalar(speed));
+                if(keys['KeyS']) nextPos.sub(moveDir.multiplyScalar(speed));
 
-                // Use simple addition for W/S (Fixes the "reversed" land issue)
-                if(keys['KeyW']) { nextX += dx; nextZ += dz; }
-                if(keys['KeyS']) { nextX -= dx; nextZ -= dz; }
-
-                // COLLISION CHECK
-                if(!checkCollision(new THREE.Vector3(nextX, camera.position.y, nextZ))) {
-                    camera.position.x = nextX;
-                    camera.position.z = nextZ;
+                // Collision Detection
+                let blocked = false;
+                const playerBox = new THREE.Box3().setFromCenterAndSize(nextPos, new THREE.Vector3(2, 4, 2));
+                for(let obj of objects) {
+                    if(playerBox.intersectsBox(new THREE.Box3().setFromObject(obj))) {
+                        blocked = true;
+                        break;
+                    }
                 }
 
+                if(!blocked) {
+                    camera.position.x = nextPos.x;
+                    camera.position.z = nextPos.z;
+                }
+
+                // Gravity/Jump
                 if(keys['Space'] && !isJumping) { vy = 0.5; isJumping = true; }
                 camera.position.y += vy;
                 if(isJumping) vy -= 0.03;
@@ -197,10 +213,7 @@
                 camera.rotation.set(0, playerYaw, 0);
             }
 
-            // Pet follow logic
-            const target = isDriving ? car.position : camera.position;
-            pet.position.lerp(new THREE.Vector3(target.x - 3, 1, target.z - 3), 0.05);
-
+            pet.position.lerp(new THREE.Vector3(camera.position.x - 4, 1, camera.position.z - 4), 0.05);
             renderer.render(scene, camera);
         }
     </script>
