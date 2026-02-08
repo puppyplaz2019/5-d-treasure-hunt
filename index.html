@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>3D Estate V35</title>
+    <title>3D Estate V36 - Jumping</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; }
         #ui { position: absolute; top: 10px; left: 10px; color: #000; font-family: monospace; background: rgba(255,255,255,0.8); padding: 15px; border-radius: 8px; pointer-events: none; border: 2px solid #2d5a27; }
@@ -11,9 +11,9 @@
 </head>
 <body>
     <div id="ui">
-        <h2 style="margin:0">ESTATE_V35</h2>
+        <h2 style="margin:0">ESTATE_V36</h2>
         <p>Chests Found: <span id="score">0</span>/10</p>
-        <p><b>FIXED:</b> Roof, Leaves, & Pond Physics</p>
+        <p><b>NEW:</b> Press SPACE to Jump!</p>
     </div>
     <div id="win">
         YOU FOUND IT ALL!<br>
@@ -39,12 +39,11 @@
         const grass = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), grassMat);
         grass.rotation.x = -Math.PI/2; grass.position.y = -1.5; scene.add(grass);
 
-        // 2. THE POND (Fixed Physics)
+        // 2. THE POND
         const pondPos = { x: 45, z: -45 };
         const pondGroup = new THREE.Group();
         pondGroup.position.set(pondPos.x, -1.5, pondPos.z);
         scene.add(pondGroup);
-
         const water = new THREE.Mesh(new THREE.CircleGeometry(15, 32), waterMat);
         water.rotation.x = -Math.PI/2; water.position.y = 0.8; pondGroup.add(water);
 
@@ -59,7 +58,7 @@
             pondRocks.push({x: x + pondPos.x, z: z + pondPos.z, r: 2});
         }
 
-        // 3. CABIN (With Roof)
+        // 3. CABIN
         const cabinWalls = [];
         function makeWall(w, h, d, x, y, z) {
             const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), woodMat);
@@ -67,38 +66,28 @@
             scene.add(mesh);
             cabinWalls.push(new THREE.Box3().setFromObject(mesh));
         }
-        // Walls
-        makeWall(30, 15, 2, 0, 6, -100); // Back
-        makeWall(2, 15, 30, -15, 6, -85); // Left
-        makeWall(2, 15, 30, 15, 6, -85);  // Right
-        makeWall(11, 15, 2, -9.5, 6, -70); // Front L
-        makeWall(11, 15, 2, 9.5, 6, -70);  // Front R
-        
-        // THE ROOF
+        makeWall(30, 15, 2, 0, 6, -100);
+        makeWall(2, 15, 30, -15, 6, -85);
+        makeWall(2, 15, 30, 15, 6, -85);
+        makeWall(11, 15, 2, -9.5, 6, -70);
+        makeWall(11, 15, 2, 9.5, 6, -70);
         const roof = new THREE.Mesh(new THREE.ConeGeometry(24, 12, 4), new THREE.MeshStandardMaterial({color: 0x4a1a1a}));
-        roof.position.set(0, 19, -85);
-        roof.rotation.y = Math.PI/4;
-        scene.add(roof);
+        roof.position.set(0, 19, -85); roof.rotation.y = Math.PI/4; scene.add(roof);
 
-        // 4. TREES (Now with Leaves!)
+        // 4. TREES
         const trees = [];
         for(let i=0; i<80; i++) {
             const tx = Math.random() * 400 - 200;
             const tz = Math.random() * 400 - 200;
-            // Exclusion zone for cabin/pond
             if (Math.abs(tx) > 25 || (tz > -50 || tz < -120)) {
                 const treeGroup = new THREE.Group();
                 const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 8), woodMat);
                 treeGroup.add(trunk);
-                
                 for(let j=0; j<3; j++) {
                     const leaves = new THREE.Mesh(new THREE.ConeGeometry(5 - j, 6, 8), leafMat);
-                    leaves.position.y = 4 + (j * 3);
-                    treeGroup.add(leaves);
+                    leaves.position.y = 4 + (j * 3); treeGroup.add(leaves);
                 }
-                
-                treeGroup.position.set(tx, 2.5, tz);
-                scene.add(treeGroup);
+                treeGroup.position.set(tx, 2.5, tz); scene.add(treeGroup);
                 trees.push({ x: tx, z: tz, r: 2 });
             }
         }
@@ -121,7 +110,10 @@
         let keys = {};
         window.onkeydown = (e) => keys[e.code] = true;
         window.onkeyup = (e) => keys[e.code] = false;
+        
         let yaw = 0, pitch = 0;
+        let vy = 0;           // Vertical Velocity
+        let isJumping = false;
         camera.position.set(0, 2, 20);
 
         function animate() {
@@ -133,14 +125,28 @@
             if (keys['ArrowDown']) pitch = Math.max(-1.4, pitch - 0.04);
             camera.rotation.set(pitch, yaw, 0, 'YXZ');
 
-            let currentSpd = 0.8;
             const distToPond = Math.sqrt(Math.pow(camera.position.x - pondPos.x, 2) + Math.pow(camera.position.z - pondPos.z, 2));
-            
-            if (distToPond < 15) {
-                currentSpd = 0.25; 
-                camera.position.y = 2 + Math.sin(Date.now() * 0.005) * 0.2;
-            } else {
-                camera.position.y = 2;
+            let currentSpd = (distToPond < 15) ? 0.25 : 0.8;
+
+            // --- JUMPING LOGIC ---
+            if (keys['Space'] && !isJumping) {
+                vy = (distToPond < 15) ? 0.25 : 0.45; // Lower jump force in water
+                isJumping = true;
+            }
+
+            if (isJumping) {
+                camera.position.y += vy;
+                vy -= 0.02; // Gravity
+                
+                const groundLevel = (distToPond < 15) ? 2 + Math.sin(Date.now() * 0.005) * 0.2 : 2;
+                
+                if (camera.position.y <= groundLevel) {
+                    camera.position.y = groundLevel;
+                    isJumping = false;
+                    vy = 0;
+                }
+            } else if (distToPond < 15) {
+                camera.position.y = 2 + Math.sin(Date.now() * 0.005) * 0.2; // Float
             }
 
             let nextX = camera.position.x;
@@ -152,25 +158,24 @@
             if (keys['KeyD']) { nextX += Math.cos(yaw) * currentSpd; nextZ -= Math.sin(yaw) * currentSpd; }
 
             let blocked = false;
-            const playerPos = new THREE.Vector3(nextX, 2, nextZ);
+            const playerPos = new THREE.Vector3(nextX, camera.position.y, nextZ);
 
-            // Wall Collision
-            cabinWalls.forEach(box => { if(box.containsPoint(playerPos)) blocked = true; });
-            // Tree Collision
-            trees.forEach(t => {
-                if (Math.sqrt(Math.pow(nextX - t.x, 2) + Math.pow(nextZ - t.z, 2)) < t.r) blocked = true;
-            });
-            // Rock Collision
-            pondRocks.forEach(r => {
-                if (Math.sqrt(Math.pow(nextX - r.x, 2) + Math.pow(nextZ - r.z, 2)) < r.r) blocked = true;
-            });
+            // Height-based Collision: If jumping high enough, ignore obstacles
+            if (camera.position.y < 4.5) {
+                cabinWalls.forEach(box => { if(box.containsPoint(playerPos)) blocked = true; });
+                trees.forEach(t => {
+                    if (Math.sqrt(Math.pow(nextX - t.x, 2) + Math.pow(nextZ - t.z, 2)) < t.r) blocked = true;
+                });
+                pondRocks.forEach(r => {
+                    if (Math.sqrt(Math.pow(nextX - r.x, 2) + Math.pow(nextZ - r.z, 2)) < r.r) blocked = true;
+                });
+            }
 
             if (!blocked) {
                 camera.position.x = nextX;
                 camera.position.z = nextZ;
             }
 
-            // Chest Collection
             chests.forEach(c => {
                 if(c.visible && camera.position.distanceTo(c.position) < 5) {
                     c.visible = false;
