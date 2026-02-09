@@ -1,56 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Estate V62 - Custom Tips</title>
+    <title>Estate V63 - Feedback & Gold</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
-        
-        /* UI LAYOUT */
-        #ui { position: absolute; top: 10px; left: 10px; color: #fff; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border-left: 4px solid #3498db; pointer-events: none; }
-        #tipBox { position: absolute; top: 10px; right: 10px; pointer-events: auto; }
-        
-        /* OVERLAY */
-        #overlay { position: absolute; width: 100%; height: 100%; background: linear-gradient(135deg, #111, #2c3e50); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
-        
-        /* BUTTONS */
-        .btn { padding: 15px 40px; font-size: 20px; cursor: pointer; background: #27ae60; border: none; color: white; border-radius: 50px; font-weight: bold; box-shadow: 0 5px #1e8449; transition: 0.1s; }
-        .btn:active { box-shadow: 0 0 #1e8449; transform: translateY(5px); }
-        
-        .tip-btn { padding: 10px 20px; font-size: 16px; background: #f1c40f; color: #222; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; border-bottom: 3px solid #d4ac0d; }
-        .tip-btn:active { transform: translateY(2px); border-bottom: 1px solid #d4ac0d; }
-
-        #msg { position: absolute; top: 50%; width: 100%; text-align: center; color: #f1c40f; font-size: 24px; font-weight: bold; opacity: 0; transition: opacity 0.5s; pointer-events: none; text-shadow: 2px 2px 0 #000; }
-
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; background: white; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; box-shadow: 0 0 4px black; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        #ui { position: absolute; top: 10px; left: 10px; color: #fff; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 10px; border-left: 5px solid #f1c40f; pointer-events: none; }
+        #tipBox { position: absolute; top: 10px; right: 10px; pointer-events: auto; text-align: right; }
+        #overlay { position: absolute; width: 100%; height: 100%; background: radial-gradient(circle, #2c3e50, #000); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        .btn { padding: 15px 40px; font-size: 20px; cursor: pointer; background: #f1c40f; border: none; color: #000; font-weight: bold; border-radius: 5px; box-shadow: 0 4px #9a7d0a; }
+        .tip-btn { padding: 12px 24px; font-size: 16px; background: #f1c40f; color: #000; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        #receipt { position: absolute; bottom: 20px; width: 100%; text-align: center; color: #2ecc71; font-weight: bold; font-family: monospace; display: none; background: rgba(0,0,0,0.7); padding: 10px 0; }
+        #msg { position: absolute; top: 40%; width: 100%; text-align: center; color: #f1c40f; font-size: 28px; font-weight: bold; opacity: 0; transition: opacity 0.5s; pointer-events: none; text-shadow: 2px 2px 4px #000; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: white; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <h1>ESTATE V62</h1>
-        <p>Tip Amount Feature Added</p>
-        <button class="btn" onclick="start()">ENTER WORLD</button>
+        <h1>ESTATE V63</h1>
+        <p>Tip $100 for Gold Car | Feedback System Active</p>
+        <button class="btn" onclick="start()">START ENGINE</button>
     </div>
 
     <div id="ui">
         <b>W / S</b>: Forward / Back<br>
         <b>A / D</b>: Turn Camera<br>
-        <b>UP / DOWN</b>: Look Up/Down<br>
-        <b>SPACE</b>: Jump | <b>B</b>: Build | <b>R</b>: Delete<br>
+        <b>SPACE</b>: Jump | <b>B</b>: Build<br>
         <hr>
-        Current Action: <span id="action" style="color:#3498db">IDLE</span>
+        Action: <span id="action" style="color:#f1c40f">IDLE</span>
     </div>
 
     <div id="tipBox">
-        <button class="tip-btn" onclick="sendTip()">💰 TIP THE DEVS</button>
+        <button class="tip-btn" onclick="sendTip()">💰 TIP & SEND FEEDBACK</button>
     </div>
 
     <div id="msg"></div>
+    <div id="receipt">RECEIPT: <span id="rCode"></span><br><small>(Copy this to chat to notify devs!)</small></div>
     <div id="crosshair"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        let scene, camera, renderer, car, raycaster;
+        let scene, camera, renderer, car, carBody, raycaster;
         let mouse = new THREE.Vector2(), keyStack = [];
         let objects = [], buildableSurface = [], buildMode = false, isDriving = false;
         let playerYaw = 0, playerPitch = 0, vy = 0, isJumping = false;
@@ -73,12 +63,11 @@
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-            const sun = new THREE.DirectionalLight(0xffffff, 0.5);
-            sun.position.set(10, 20, 10);
+            const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+            sun.position.set(10, 50, 10);
             scene.add(sun);
 
-            // FLOOR
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshBasicMaterial({color: 0x27ae60}));
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshPhongMaterial({color: 0x27ae60}));
             floor.rotation.x = -Math.PI/2; 
             scene.add(floor); 
             buildableSurface.push(floor);
@@ -86,17 +75,13 @@
             createVillage();
             createCar();
 
-            // INPUTS
             window.addEventListener('keydown', e => {
                 if (!keyStack.includes(e.code)) keyStack.push(e.code);
-                if (e.code === 'Space' && !isJumping && !isDriving) { vy = 0.6; isJumping = true; }
+                if (e.code === 'Space' && !isJumping && !isDriving) { vy = 0.5; isJumping = true; }
                 if (e.code === 'KeyB') buildMode = !buildMode;
                 if (e.code === 'KeyE') toggleDrive();
-                if (e.code === 'KeyR') deleteBlock();
             });
-            window.addEventListener('keyup', e => {
-                keyStack = keyStack.filter(k => k !== e.code);
-            });
+            window.addEventListener('keyup', e => keyStack = keyStack.filter(k => k !== e.code));
             window.addEventListener('mousedown', placeBlock);
             window.addEventListener('mousemove', e => {
                 mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -106,38 +91,52 @@
             loop();
         }
 
-        // --- NEW TIPPING LOGIC ---
         function sendTip() {
-            // 1. Ask the user for an amount
-            let amount = prompt("Enter tip amount ($):", "10");
-
-            // 2. Validate the input (make sure they didn't press Cancel or type nothing)
-            if (amount != null && amount != "") {
+            let amount = prompt("How much would you like to tip? ($)", "100");
+            if (amount && !isNaN(amount)) {
                 const msg = document.getElementById('msg');
+                const receipt = document.getElementById('receipt');
+                const code = document.getElementById('rCode');
                 
-                // 3. Show the custom message
-                msg.innerText = "WOW! YOU TIPPED $" + amount + "! THANKS! :)";
-                msg.style.opacity = 1;
+                // Reward Logic
+                if (parseInt(amount) >= 100) {
+                    carBody.material.color.setHex(0xf1c40f); // Turn Gold
+                    carBody.material.metalness = 1;
+                    carBody.material.roughness = 0.1;
+                    msg.innerText = "GOLD STATUS ACHIEVED! THANK YOU!";
+                } else {
+                    msg.innerText = "TIP RECEIVED! THANK YOU!";
+                }
 
-                // 4. Hide it after 3 seconds
+                // Feedback "Code" generation
+                let secretCode = "DEV-" + Math.random().toString(36).substr(2, 9).toUpperCase() + "-" + amount;
+                code.innerText = secretCode;
+                receipt.style.display = "block";
+                
+                msg.style.opacity = 1;
                 setTimeout(() => { msg.style.opacity = 0; }, 3000);
             }
         }
 
         function createCar() {
             car = new THREE.Group();
-            const b = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 7), new THREE.MeshBasicMaterial({color: 0xe74c3c}));
-            b.position.y = 1; car.add(b);
+            // Using MeshStandardMaterial so it can look "shiny" or "gold"
+            carBody = new THREE.Mesh(
+                new THREE.BoxGeometry(4, 2, 7), 
+                new THREE.MeshStandardMaterial({color: 0xe74c3c, metalness: 0.5, roughness: 0.5})
+            );
+            carBody.position.y = 1; 
+            car.add(carBody);
             car.position.set(10, 0, 10);
             scene.add(car);
-            objects.push(b);
+            objects.push(carBody);
         }
 
         function createVillage() {
-            const mat = new THREE.MeshBasicMaterial({color: 0x7f8c8d});
+            const mat = new THREE.MeshPhongMaterial({color: 0x7f8c8d});
             for(let i=0; i<3; i++) {
                 const h = new THREE.Mesh(new THREE.BoxGeometry(12, 12, 12), mat);
-                h.position.set(-20, 6, i * -30 - 10);
+                h.position.set(-25, 6, i * -30 - 10);
                 scene.add(h);
                 objects.push(h);
             }
@@ -146,7 +145,7 @@
         function checkCollision(pos) {
             const pBox = new THREE.Box3().setFromCenterAndSize(pos, new THREE.Vector3(2, 4, 2));
             for(let obj of objects) {
-                if(obj === car && isDriving) continue;
+                if(obj === carBody && isDriving) continue;
                 const oBox = new THREE.Box3().setFromObject(obj);
                 if(pBox.intersectsBox(oBox)) return true;
             }
@@ -159,25 +158,11 @@
             const hits = raycaster.intersectObjects(buildableSurface);
             if (hits.length > 0) {
                 const p = hits[0].point;
-                const b = new THREE.Mesh(new THREE.BoxGeometry(3,3,3), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                const b = new THREE.Mesh(new THREE.BoxGeometry(3,3,3), new THREE.MeshPhongMaterial({color: 0xffffff}));
                 b.position.set(Math.round(p.x/3)*3, Math.round(p.y/3)*3 + 1.5, Math.round(p.z/3)*3);
                 scene.add(b);
                 objects.push(b);
                 buildableSurface.push(b);
-            }
-        }
-
-        function deleteBlock() {
-            if(!buildMode) return;
-            raycaster.setFromCamera(mouse, camera);
-            const hits = raycaster.intersectObjects(objects);
-            if (hits.length > 0) {
-                const obj = hits[0].object;
-                if(obj.material.color.getHex() === 0xffffff) {
-                    scene.remove(obj);
-                    objects = objects.filter(o => o !== obj);
-                    buildableSurface = buildableSurface.filter(s => s !== obj);
-                }
             }
         }
 
@@ -192,22 +177,19 @@
             document.getElementById('action').innerText = topKey || "IDLE";
 
             const speed = isDriving ? 1.0 : 0.4;
-            
-            // DIRECTION LOGIC
             const dir = new THREE.Vector3();
             camera.getWorldDirection(dir);
-            dir.y = 0; 
-            dir.normalize();
+            dir.y = 0; dir.normalize();
 
             let nextPos = camera.position.clone();
 
             if (topKey === 'KeyW') {
-                nextPos.add(dir.multiplyScalar(speed));
-                if(isDriving) car.position.add(dir.multiplyScalar(speed * 2));
+                nextPos.add(dir.clone().multiplyScalar(speed));
+                if(isDriving) car.position.add(dir.clone().multiplyScalar(speed * 2));
             } 
             else if (topKey === 'KeyS') {
-                nextPos.sub(dir.multiplyScalar(speed));
-                if(isDriving) car.position.sub(dir.multiplyScalar(speed * 2));
+                nextPos.sub(dir.clone().multiplyScalar(speed));
+                if(isDriving) car.position.sub(dir.clone().multiplyScalar(speed * 2));
             } 
             else if (topKey === 'KeyA') playerYaw += 0.04;
             else if (topKey === 'KeyD') playerYaw -= 0.04;
@@ -218,20 +200,11 @@
                 if((topKey === 'KeyW' || topKey === 'KeyS') && !checkCollision(nextPos)) {
                     camera.position.copy(nextPos);
                 }
-            }
-
-            // VERTICAL PHYSICS
-            if(!isDriving) {
                 camera.position.y += vy;
                 if(isJumping) vy -= 0.03;
-                if(camera.position.y <= 5) {
-                    camera.position.y = 5;
-                    vy = 0;
-                    isJumping = false;
-                }
+                if(camera.position.y <= 5) { camera.position.y = 5; vy = 0; isJumping = false; }
             }
 
-            // CAMERA SYNC
             if(isDriving) {
                 car.rotation.y = playerYaw - Math.PI;
                 camera.position.set(car.position.x - Math.sin(playerYaw)*15, car.position.y + 8, car.position.z - Math.cos(playerYaw)*15);
