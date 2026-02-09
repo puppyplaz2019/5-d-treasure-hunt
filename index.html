@@ -1,32 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Estate V58 - Priority Controls</title>
+    <title>Estate V59 - Solid State</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: monospace; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         #ui { position: absolute; top: 10px; left: 10px; color: #0f0; background: rgba(0,0,0,0.9); padding: 15px; border: 1px solid #0f0; pointer-events: none; }
         #overlay { position: absolute; width: 100%; height: 100%; background: #000; color: #0f0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; border: 5px solid #0f0; box-sizing: border-box; }
         .btn { padding: 15px 40px; font-size: 20px; cursor: pointer; background: #0f0; border: none; color: #000; font-weight: bold; }
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; border: 1px solid #0f0; transform: translate(-50%, -50%); pointer-events: none; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border: 2px solid #0f0; transform: translate(-50%, -50%); pointer-events: none; }
     </style>
 </head>
 <body>
 
     <div id="overlay">
-        <h1>SYSTEM V58: PRIORITY_INPUT</h1>
-        <p>> STABILIZING CAMERA... DONE</p>
-        <p>> MAPPING ELEVATOR ARROWS... DONE</p>
-        <button class="btn" onclick="start()">INITIALIZE_WORLD</button>
+        <h1>ESTATE V59: SOLID_STATE</h1>
+        <p>> COLLISION: ENGAGED | LOOK_AXIS: RECALIBRATED</p>
+        <button class="btn" onclick="start()">INITIALIZE</button>
     </div>
 
     <div id="ui">
-        [INPUT PRIORITY ACTIVE]<br>
-        <b>W / S</b>: Forward / Back<br>
+        <b>W / S</b>: Step Forward / Back<br>
         <b>A / D</b>: Turn Left / Right<br>
-        <b>UP / DOWN ARROWS</b>: Fly Up / Down<br>
-        <b>R</b>: Deconstruct (Build Mode: B)<br>
+        <b>UP / DOWN</b>: Look Up / Down<br>
+        <b>B</b>: Build Mode | <b>R</b>: Delete Block<br>
         <hr>
-        LAST_KEY: <span id="lastKey">NONE</span>
+        ACTIVE_KEY: <span id="activeKey">NONE</span>
     </div>
 
     <div id="crosshair"></div>
@@ -35,9 +33,9 @@
     <script>
         let scene, camera, renderer, car, raycaster;
         let mouse = new THREE.Vector2();
-        let keyStack = []; // To track input priority
+        let keyStack = []; 
         let objects = [], buildableSurface = [], buildMode = false, isDriving = false;
-        let playerYaw = 0;
+        let playerYaw = 0, playerPitch = 0;
 
         function start() {
             document.getElementById('overlay').style.display = 'none';
@@ -46,7 +44,7 @@
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x00050a);
+            scene.background = new THREE.Color(0x87CEEB);
             raycaster = new THREE.Raycaster();
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
@@ -60,36 +58,27 @@
 
             // Biomes
             const floorGeo = new THREE.PlaneGeometry(1000, 1000);
-            const forest = new THREE.Mesh(floorGeo, new THREE.MeshBasicMaterial({color: 0x112211}));
-            forest.rotation.x = -Math.PI/2; forest.position.set(-500, 0, 0); 
+            const forest = new THREE.Mesh(floorGeo, new THREE.MeshBasicMaterial({color: 0x27ae60}));
+            forest.rotation.x = -Math.PI/2; 
             scene.add(forest); buildableSurface.push(forest);
-
-            const desert = new THREE.Mesh(floorGeo, new THREE.MeshBasicMaterial({color: 0x222211}));
-            desert.rotation.x = -Math.PI/2; desert.position.set(500, 0, 0); 
-            scene.add(desert); buildableSurface.push(desert);
 
             createCar();
             createVillage();
 
-            // INPUT HANDLING
+            // INPUT
             window.addEventListener('keydown', e => {
                 if (!keyStack.includes(e.code)) keyStack.push(e.code);
-                document.getElementById('lastKey').innerText = e.code;
-
                 if(e.code === 'KeyB') buildMode = !buildMode;
                 if(e.code === 'KeyE') toggleDrive();
                 if(e.code === 'KeyR') deleteBlock();
             });
-
             window.addEventListener('keyup', e => {
                 keyStack = keyStack.filter(k => k !== e.code);
             });
-
             window.addEventListener('mousemove', e => {
                 mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
             });
-
             window.addEventListener('mousedown', placeBlock);
 
             loop();
@@ -97,19 +86,29 @@
 
         function createCar() {
             car = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 6), new THREE.MeshBasicMaterial({color: 0xff0000}));
-            body.position.y = 1; car.add(body);
+            const b = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 6), new THREE.MeshBasicMaterial({color: 0xff0000}));
+            b.position.y = 1; car.add(b);
             car.position.set(10, 0, 10);
             scene.add(car);
+            objects.push(b);
         }
 
         function createVillage() {
-            for(let i=0; i<5; i++) {
-                const b = new THREE.Mesh(new THREE.BoxGeometry(8, 8, 8), new THREE.MeshBasicMaterial({color: 0x333333}));
-                b.position.set(-20, 4, i * -20);
+            for(let i=0; i<4; i++) {
+                const b = new THREE.Mesh(new THREE.BoxGeometry(10, 10, 10), new THREE.MeshBasicMaterial({color: 0x7f8c8d}));
+                b.position.set(-25, 5, i * -25);
                 scene.add(b);
                 objects.push(b);
             }
+        }
+
+        function checkCollision(targetPos) {
+            const playerBox = new THREE.Box3().setFromCenterAndSize(targetPos, new THREE.Vector3(3, 5, 3));
+            for(let obj of objects) {
+                const objBox = new THREE.Box3().setFromObject(obj);
+                if(playerBox.intersectsBox(objBox)) return true;
+            }
+            return false;
         }
 
         function placeBlock() {
@@ -118,8 +117,8 @@
             const hits = raycaster.intersectObjects(buildableSurface);
             if (hits.length > 0) {
                 const p = hits[0].point;
-                const b = new THREE.Mesh(new THREE.BoxGeometry(2,2,2), new THREE.MeshBasicMaterial({color: 0xffffff}));
-                b.position.set(Math.round(p.x), Math.round(p.y) + 1, Math.round(p.z));
+                const b = new THREE.Mesh(new THREE.BoxGeometry(3,3,3), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                b.position.set(Math.round(p.x/3)*3, Math.round(p.y/3)*3 + 1.5, Math.round(p.z/3)*3);
                 scene.add(b);
                 buildableSurface.push(b);
                 objects.push(b);
@@ -132,7 +131,7 @@
             const hits = raycaster.intersectObjects(objects);
             if (hits.length > 0) {
                 const obj = hits[0].object;
-                if(obj.material.color.getHex() === 0xffffff) {
+                if(obj.material.color && obj.material.color.getHex() === 0xffffff) {
                     scene.remove(obj);
                     objects = objects.filter(o => o !== obj);
                     buildableSurface = buildableSurface.filter(s => s !== obj);
@@ -142,53 +141,44 @@
 
         function toggleDrive() {
             if(isDriving) { isDriving = false; camera.position.y = 5; }
-            else if(camera.position.distanceTo(car.position) < 8) isDriving = true;
+            else if(camera.position.distanceTo(car.position) < 10) isDriving = true;
         }
 
         function loop() {
             requestAnimationFrame(loop);
+            const currentKey = keyStack[keyStack.length - 1];
+            document.getElementById('activeKey').innerText = currentKey || "NONE";
 
-            const speed = 0.5;
-            const rotSpeed = 0.05;
-            const currentKey = keyStack[keyStack.length - 1]; // Only act on the LAST key pressed
+            const speed = 0.6;
+            const rotSpeed = 0.04;
 
-            const moveDir = new THREE.Vector3();
-            camera.getWorldDirection(moveDir);
-            moveDir.y = 0;
-            moveDir.normalize();
+            // Horizontal Direction (Yaw Only)
+            const forward = new THREE.Vector3(Math.sin(playerYaw), 0, Math.cos(playerYaw));
 
-            // PRIORITY MOVEMENT LOGIC
-            if (currentKey === 'KeyW') {
-                if(isDriving) car.position.add(moveDir.multiplyScalar(speed * 2));
-                else camera.position.add(moveDir.multiplyScalar(speed));
+            if (currentKey === 'KeyW' || currentKey === 'KeyS') {
+                let dir = (currentKey === 'KeyW') ? 1 : -1;
+                let nextPos = camera.position.clone().add(forward.clone().multiplyScalar(speed * dir));
+                
+                if(isDriving) {
+                    car.position.add(forward.clone().multiplyScalar(speed * 2 * dir));
+                } else {
+                    if (!checkCollision(nextPos)) {
+                        camera.position.copy(nextPos);
+                    }
+                }
             } 
-            else if (currentKey === 'KeyS') {
-                if(isDriving) car.position.sub(moveDir.multiplyScalar(speed * 2));
-                else camera.position.sub(moveDir.multiplyScalar(speed));
-            } 
-            else if (currentKey === 'KeyA') {
-                playerYaw += rotSpeed;
-            } 
-            else if (currentKey === 'KeyD') {
-                playerYaw -= rotSpeed;
-            } 
-            else if (currentKey === 'ArrowUp') {
-                if(isDriving) car.position.y += speed;
-                else camera.position.y += speed;
-            } 
-            else if (currentKey === 'ArrowDown') {
-                if(isDriving) car.position.y -= speed;
-                else camera.position.y -= speed;
-                if(camera.position.y < 2) camera.position.y = 2; // Floor limit
-            }
+            else if (currentKey === 'KeyA') playerYaw += rotSpeed;
+            else if (currentKey === 'KeyD') playerYaw -= rotSpeed;
+            else if (currentKey === 'ArrowUp') playerPitch = Math.min(playerPitch + 0.03, 1.4);
+            else if (currentKey === 'ArrowDown') playerPitch = Math.max(playerPitch - 0.03, -1.4);
 
-            // Sync Visuals
+            // Apply Rotations
             if(isDriving) {
                 car.rotation.y = playerYaw - Math.PI;
-                camera.position.set(car.position.x - Math.sin(playerYaw)*15, car.position.y + 8, car.position.z - Math.cos(playerYaw)*15);
+                camera.position.set(car.position.x - Math.sin(playerYaw)*15, car.position.y + 10, car.position.z - Math.cos(playerYaw)*15);
                 camera.lookAt(car.position);
             } else {
-                camera.rotation.set(0, playerYaw, 0);
+                camera.rotation.set(playerPitch, playerYaw, 0, 'YXZ');
             }
 
             renderer.render(scene, camera);
