@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Estate V87 - Leaderboard Edition</title>
+    <title>Estate V88 - The Bright Race</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #fff; }
+        body { margin: 0; overflow: hidden; background: #0b0b0b; font-family: 'Courier New', monospace; color: #fff; }
         #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; }
-        #timerBox { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 15px; border: 2px solid #ffd700; border-radius: 10px; text-align: center; min-width: 200px; }
-        #shareBtn { position: absolute; top: 10px; left: 260px; background: #32cd32; color: #000; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; border: 2px solid #fff; pointer-events: auto; }
+        
+        /* TIMER & SHARE (RIGHT ALIGNED) */
+        #topCenter { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-start; gap: 20px; }
+        #timerBox { background: rgba(0,0,0,0.9); padding: 15px; border: 2px solid #ffd700; border-radius: 10px; text-align: center; min-width: 200px; }
+        #shareBtn { background: #32cd32; color: #000; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; border: 2px solid #fff; pointer-events: auto; white-space: nowrap; }
+
         #tipJar { position: absolute; bottom: 180px; right: 20px; background: linear-gradient(45deg, #c0c0c0, #ffd700); padding: 12px; border-radius: 10px; border: 3px solid #00ffff; color: #000; font-weight: bold; text-align: center; cursor: pointer; box-shadow: 0 0 20px #00ffff; z-index: 20;}
         #commentBox { position: absolute; bottom: 20px; left: 20px; background: rgba(10,10,10,0.9); padding: 15px; border: 1px solid #555; width: 300px; border-radius: 5px; }
         #commentList { height: 100px; overflow-y: auto; font-size: 11px; margin-bottom: 5px; border-bottom: 1px solid #333; }
@@ -19,22 +23,23 @@
 <body>
 
     <div id="overlay">
-        <h1 style="color:#ffd700; letter-spacing:10px;">V87: LAP CHALLENGE</h1>
+        <h1 style="color:#ffd700; letter-spacing:10px;">V88: BRIGHT CIRCUIT</h1>
         <button class="btn" style="font-size:20px; padding:15px 40px;" onclick="start()">START ENGINES</button>
     </div>
 
-    <div id="timerBox">
-        <div style="font-size: 10px; color: #ffd700;">CURRENT LAP</div>
-        <div id="currTime" style="font-size: 24px; font-weight: bold;">00:00.00</div>
-        <div id="bestTime" style="font-size: 12px; color: #00ffff; margin-top: 5px;">BEST: --:--.--</div>
+    <div id="topCenter">
+        <div id="timerBox">
+            <div style="font-size: 10px; color: #ffd700;">LAP TIME</div>
+            <div id="currTime" style="font-size: 24px; font-weight: bold;">--:--.--</div>
+            <div id="bestTime" style="font-size: 12px; color: #00ffff; margin-top: 5px;">BEST: --:--.--</div>
+        </div>
+        <div id="shareBtn" onclick="copyLink()">🔗 SHARE GAME</div>
     </div>
 
     <div id="ui">
-        <b>WASD</b>: Drive | <b>Status</b>: <span style="color:#00ffff">RACING</span><br>
+        <b>WASD</b>: Drive | <b>Status</b>: <span id="statusTxt" style="color:#00ffff">READY</span><br>
         <small style="color: #ffd700;">Support: Jimmy Shanks (ESOFA)</small>
     </div>
-
-    <div id="shareBtn" onclick="copyLink()">🔗 SHARE GAME</div>
 
     <div id="tipJar" onclick="openJimmyTip()">
         🥁 TIP JIMMY SHANKS<br>
@@ -43,7 +48,7 @@
 
     <div id="commentBox">
         <b>💬 LIVE FEED</b>
-        <div id="commentList">Cross the white line to start!</div>
+        <div id="commentList">Spawning behind start line...</div>
         <div style="display:flex; gap:5px;">
             <input type="text" id="comInput" style="flex-grow:1;" placeholder="Speak/Type...">
             <button class="btn" onclick="startVoice()">🎤</button>
@@ -61,9 +66,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        let scene, camera, renderer, carGroup, headlights = [];
+        let scene, camera, renderer, carGroup;
         let keyStack = [], playerYaw = 0, speed = 0;
-        let startTime = 0, bestTime = Infinity, lapActive = false, checkpointReached = false;
+        let startTime = 0, bestTime = Infinity, lapActive = false, checkpointReached = false, racePrompted = false;
 
         function start() { document.getElementById('overlay').style.display = 'none'; init(); }
 
@@ -76,20 +81,22 @@
 
         function init() {
             scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0f); // Slightly lighter background
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 10000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.GridHelper(10000, 100, 0x32cd32, 0x112211));
+            // BRIGHTER GRIDS
+            scene.add(new THREE.GridHelper(10000, 100, 0x32cd32, 0x223322));
 
-            // THE TRACK
+            // THE TRACK (120 Width)
             const curve = new THREE.CatmullRomCurve3([
                 new THREE.Vector3(0, 0, 0),
-                new THREE.Vector3(1000, 0, 1000),
-                new THREE.Vector3(2500, 0, 1500), // Checkpoint near here
-                new THREE.Vector3(4000, 0, 0),
-                new THREE.Vector3(2000, 0, -2000),
+                new THREE.Vector3(1200, 0, 1000),
+                new THREE.Vector3(2800, 0, 1500),
+                new THREE.Vector3(4500, 0, 0),
+                new THREE.Vector3(2000, 0, -2500),
                 new THREE.Vector3(0, 0, 0)
             ]);
             curve.closed = true;
@@ -112,14 +119,16 @@
             roadGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
             roadGeo.setIndex(indices);
             roadGeo.computeVertexNormals();
-            scene.add(new THREE.Mesh(roadGeo, new THREE.MeshPhysicalMaterial({ color: 0x0a0a0a, metalness: 0.9, roughness: 0.1 })));
+            scene.add(new THREE.Mesh(roadGeo, new THREE.MeshPhysicalMaterial({ color: 0x151515, metalness: 0.6, roughness: 0.3 })));
 
-            // FINISH LINE
-            const finishLine = new THREE.Mesh(new THREE.PlaneGeometry(120, 10), new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide}));
-            finishLine.rotation.x = Math.PI/2; finishLine.position.y = 0.1; scene.add(finishLine);
+            // START/FINISH LINE
+            const finishLine = new THREE.Mesh(new THREE.PlaneGeometry(120, 12), new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide}));
+            finishLine.rotation.x = Math.PI/2; finishLine.position.y = 0.08; scene.add(finishLine);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(500, 1000, 500); scene.add(sun);
+            // BRIGHTER LIGHTING
+            scene.add(new THREE.AmbientLight(0xffffff, 1.2)); // Stronger overall light
+            const sun = new THREE.DirectionalLight(0x00ffff, 0.5); sun.position.set(500, 1000, 500); scene.add(sun);
+            const backLight = new THREE.DirectionalLight(0xffffff, 0.5); backLight.position.set(-500, 1000, -500); scene.add(backLight);
 
             createCar();
             window.addEventListener('keydown', e => { if(!keyStack.includes(e.code)) keyStack.push(e.code); });
@@ -131,8 +140,11 @@
             carGroup = new THREE.Group();
             const mat = new THREE.MeshPhysicalMaterial({ color: 0xffd700, metalness: 1, roughness: 0.01, clearcoat: 1 });
             const chassis = new THREE.Mesh(new THREE.BoxGeometry(6, 1.2, 12), mat); chassis.position.y = 0.6; carGroup.add(chassis);
-            const cabin = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 6), new THREE.MeshPhysicalMaterial({color: 0x000})); cabin.position.set(0, 1.8, 1); carGroup.add(cabin);
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 6), new THREE.MeshPhysicalMaterial({color: 0x000, metalness: 1})); cabin.position.set(0, 1.8, 1); carGroup.add(cabin);
             const spoiler = new THREE.Mesh(new THREE.BoxGeometry(6, 0.4, 3), mat); spoiler.position.set(0, 2.6, -5); carGroup.add(spoiler);
+            
+            // SPAWN BEHIND LINE
+            carGroup.position.set(0, 0, -50);
             scene.add(carGroup);
         }
 
@@ -144,33 +156,47 @@
         function animate() {
             requestAnimationFrame(animate);
             const k = keyStack[keyStack.length - 1];
-            if (k === 'KeyW') speed = Math.min(speed + 0.15, 5.0);
-            else if (k === 'KeyS') speed = Math.max(speed - 0.15, -2.0);
-            else speed *= 0.95;
-            if (k === 'KeyA') playerYaw += 0.05;
-            if (k === 'KeyD') playerYaw -= 0.05;
+            
+            // SPEED LOGIC
+            if (k === 'KeyW') speed = Math.min(speed + 0.12, 4.5);
+            else if (k === 'KeyS') speed = Math.max(speed - 0.12, -1.8);
+            else speed *= 0.96;
+
+            if (k === 'KeyA') playerYaw += 0.045;
+            if (k === 'KeyD') playerYaw -= 0.045;
 
             carGroup.rotation.y = playerYaw;
             carGroup.position.x += Math.sin(playerYaw) * speed;
             carGroup.position.z += Math.cos(playerYaw) * speed;
 
-            // LAP LOGIC
-            const distToOrigin = carGroup.position.length();
-            if (distToOrigin < 20 && !lapActive && !checkpointReached) {
-                startTime = Date.now(); lapActive = true; 
-            } else if (distToOrigin > 1500) {
-                checkpointReached = true; 
-            } else if (distToOrigin < 30 && checkpointReached) {
-                const finalTime = Date.now() - startTime;
-                if (finalTime < bestTime) { 
-                    bestTime = finalTime; 
-                    document.getElementById('bestTime').innerText = "BEST: " + formatTime(bestTime);
-                    document.getElementById('commentList').innerHTML += `<div style="color:#32cd32"><b>NEW RECORD!</b> ${formatTime(bestTime)}</div>`;
+            // RACE LOGIC
+            const zPos = carGroup.position.z;
+            const xPos = carGroup.position.x;
+            const distToOrigin = Math.sqrt(xPos*xPos + zPos*zPos);
+
+            if (zPos >= 0 && !racePrompted && !lapActive) {
+                racePrompted = true;
+                speed = 0; // Pause for prompt
+                if (confirm("Do you want to race?")) {
+                    startTime = Date.now();
+                    lapActive = true;
+                    document.getElementById('commentList').innerHTML += `<div style="color:#ffd700">RACE STARTED! Good luck!</div>`;
+                } else {
+                    document.getElementById('commentList').innerHTML += `<div>Okay, see you soon then!</div>`;
                 }
-                startTime = Date.now(); checkpointReached = false;
             }
 
             if (lapActive) {
+                if (distToOrigin > 1500) checkpointReached = true; 
+                if (distToOrigin < 35 && checkpointReached) {
+                    const finalTime = Date.now() - startTime;
+                    if (finalTime < bestTime) { 
+                        bestTime = finalTime; 
+                        document.getElementById('bestTime').innerText = "BEST: " + formatTime(bestTime);
+                    }
+                    startTime = Date.now(); checkpointReached = false;
+                    document.getElementById('commentList').innerHTML += `<div style="color:#32cd32">LAP COMPLETE!</div>`;
+                }
                 document.getElementById('currTime').innerText = formatTime(Date.now() - startTime);
             }
 
@@ -181,6 +207,10 @@
 
         function openJimmyTip() { window.open("https://www.sanangelogives.org/organization/emmanuelschooloffinearts", '_blank'); }
         function addComment() { const i = document.getElementById('comInput'); if(i.value) { document.getElementById('commentList').innerHTML += `<div><b>Driver:</b> ${i.value}</div>`; i.value = ""; } }
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+        function startVoice() { if (recognition) recognition.start(); }
+        if(recognition) { recognition.onresult = (e) => { document.getElementById('comInput').value = e.results[0][0].transcript; }; }
         function playLink() { const u = document.getElementById('musicLink').value; let id = u.includes("v=") ? u.split("v=")[1].split("&")[0] : (u.includes("youtu.be/") ? u.split("youtu.be/")[1] : null); if(id) { document.getElementById('playerFrame').style.display = "block"; document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1`; } }
     </script>
 </body>
