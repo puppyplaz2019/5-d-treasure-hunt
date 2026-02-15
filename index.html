@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Estate V93 - Smooth Circuit</title>
+    <title>Estate V94 - Grandstand</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
         
@@ -27,7 +27,7 @@
 <body>
 
     <div id="overlay">
-        <h1 style="color:#00ffff; letter-spacing:10px; text-shadow: 0 0 10px #00ffff;">V93: SMOOTH CIRCUIT</h1>
+        <h1 style="color:#00ffff; letter-spacing:10px; text-shadow: 0 0 10px #00ffff;">V94: THE CROWD</h1>
         <button class="btn" style="font-size:18px; padding:12px 30px; background:#00ffff; color:#000;" onclick="start()">IGNITION</button>
     </div>
 
@@ -37,7 +37,7 @@
         <div id="bestTime" style="font-size: 11px; color: #32cd32;">BEST: --:--.--</div>
     </div>
 
-    <div id="shareBtn" onclick="copyLink()">🔗 SHARE</div>
+    <div id="shareBtn" onclick="copyLink()">🔗 SHARE CHALLENGE</div>
 
     <div id="ui">
         <b>WASD</b>: Drive<br>
@@ -48,7 +48,7 @@
 
     <div id="commentBox">
         <b>💬 CHAT</b>
-        <div id="commentList">Road Fixed. Smooth geometry applied.</div>
+        <div id="commentList">The audience is watching. Good luck.</div>
         <div style="display:flex; gap:3px;">
             <input type="text" id="comInput" style="flex-grow:1;" placeholder="Talk...">
             <button class="btn" onclick="startVoice()">🎤</button>
@@ -74,7 +74,9 @@
 
         function copyLink() {
             navigator.clipboard.writeText(window.location.href);
-            alert("Link copied to clipboard!");
+            const b = document.getElementById('shareBtn');
+            b.innerText = "COPIED!";
+            setTimeout(() => b.innerText = "🔗 SHARE CHALLENGE", 2000);
         }
 
         function init() {
@@ -85,17 +87,17 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // GRID (Base Floor)
+            // GRID
             scene.add(new THREE.GridHelper(10000, 150, 0x00ffff, 0x111111));
 
-            // SMOOTH TRACK GENERATION
+            // SMOOTH TRACK
             const curve = new THREE.CatmullRomCurve3([
                 new THREE.Vector3(0, 0, 0),
                 new THREE.Vector3(1500, 0, 1500),
                 new THREE.Vector3(4000, 0, 500),
                 new THREE.Vector3(3000, 0, -2500),
                 new THREE.Vector3(1000, 0, -1500),
-            ], true); // Closed Loop
+            ], true);
 
             const points = curve.getPoints(300);
             const roadGeo = new THREE.BufferGeometry();
@@ -110,11 +112,8 @@
                 const dir = new THREE.Vector3().subVectors(next, curr).normalize();
                 const side = new THREE.Vector3(0, 1, 0).cross(dir).multiplyScalar(70);
 
-                // Road Vertices
-                verts.push(curr.x + side.x, 0.08, curr.z + side.z); // Left
-                verts.push(curr.x - side.x, 0.08, curr.z - side.z); // Right
-
-                // Edge Lines Vertices
+                verts.push(curr.x + side.x, 0.08, curr.z + side.z); 
+                verts.push(curr.x - side.x, 0.08, curr.z - side.z); 
                 edgeVertsL.push(curr.x + side.x, 0.12, curr.z + side.z);
                 edgeVertsR.push(curr.x - side.x, 0.12, curr.z - side.z);
 
@@ -128,17 +127,16 @@
             roadGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
             roadGeo.setIndex(indices); roadGeo.computeVertexNormals();
             
-            // Dark Racing Asphalt
-            const roadMat = new THREE.MeshPhysicalMaterial({ color: 0x151515, roughness: 0.6, metalness: 0.1 });
-            scene.add(new THREE.Mesh(roadGeo, roadMat));
-
-            // Glowing Neon Edges
+            // Road & Edge Visuals
+            scene.add(new THREE.Mesh(roadGeo, new THREE.MeshPhysicalMaterial({ color: 0x151515, roughness: 0.6, metalness: 0.1 })));
             const edgeMat = new THREE.LineBasicMaterial({ color: 0x00ffff });
-            const lineL = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(edgeVertsL, 3)), edgeMat);
-            const lineR = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(edgeVertsR, 3)), edgeMat);
-            scene.add(lineL); scene.add(lineR);
+            scene.add(new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(edgeVertsL, 3)), edgeMat));
+            scene.add(new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(edgeVertsR, 3)), edgeMat));
 
-            // LIGHTS (Better car visibility)
+            // AUDIENCE GENERATION
+            createAudience(points);
+
+            // LIGHTS
             scene.add(new THREE.AmbientLight(0xffffff, 0.8));
             const hemi = new THREE.HemisphereLight(0x00ffff, 0xffffff, 0.6);
             scene.add(hemi);
@@ -154,9 +152,37 @@
             animate();
         }
 
+        function createAudience(points) {
+            const crowdGeo = new THREE.BoxGeometry(3, 8, 3);
+            const colors = [0x00ffff, 0xff00ff, 0x32cd32, 0xffd700];
+            
+            // Iterate through track points, skip some to avoid clutter
+            for (let i = 0; i < points.length; i += 2) {
+                const p = points[i];
+                const next = points[(i + 1) % points.length];
+                const dir = new THREE.Vector3().subVectors(next, p).normalize();
+                const side = new THREE.Vector3(0, 1, 0).cross(dir);
+
+                // Create Left Side Crowd
+                if (Math.random() > 0.3) {
+                    const m = new THREE.Mesh(crowdGeo, new THREE.MeshBasicMaterial({ color: colors[Math.floor(Math.random()*4)] }));
+                    const dist = 80 + Math.random() * 40;
+                    m.position.set(p.x + side.x * dist, 4 + Math.random()*5, p.z + side.z * dist);
+                    scene.add(m);
+                }
+
+                // Create Right Side Crowd
+                if (Math.random() > 0.3) {
+                    const m = new THREE.Mesh(crowdGeo, new THREE.MeshBasicMaterial({ color: colors[Math.floor(Math.random()*4)] }));
+                    const dist = 80 + Math.random() * 40;
+                    m.position.set(p.x - side.x * dist, 4 + Math.random()*5, p.z - side.z * dist);
+                    scene.add(m);
+                }
+            }
+        }
+
         function createCar() {
             carGroup = new THREE.Group();
-            // Gunmetal Grey Material
             const carbonMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.3, metalness: 0.7 }); 
             const neonMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 4 });
 
