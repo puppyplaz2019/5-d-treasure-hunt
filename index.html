@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>The Racers - Safety Protocol</title>
+    <title>The Racers - Solid Walls</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
         #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; }
@@ -19,7 +19,7 @@
 
     <div id="overlay">
         <h1 style="color:#ffffff; letter-spacing:12px; text-shadow: 0 0 20px #00ffff;">THE RACERS</h1>
-        <p style="color:#00ffff; margin-top:-15px; letter-spacing:3px;">SAFETY PROTOCOLS READY</p>
+        <p style="color:#ff0000; margin-top:-15px; letter-spacing:3px;">SOLID BARRIERS ENGAGED</p>
         <button class="btn" style="font-size:18px; padding:12px 40px; background:#fff; margin-top:20px;" onclick="start()">IGNITION</button>
     </div>
 
@@ -33,14 +33,14 @@
 
     <div id="ui">
         <b>WASD</b>: Drive | <b>SHIFT</b>: Nitro<br>
-        <small style="color: #00ffff;">Walls deploy during Race</small>
+        <small style="color: #00ffff;">Warning: Walls are SOLID during race</small>
     </div>
 
     <div id="tipJar" onclick="openJimmyTip()">🥁 TIP ESOFA</div>
 
     <div id="commentBox">
         <b>💬 CHAT</b>
-        <div id="commentList">Practice Mode: Walls Offline.</div>
+        <div id="commentList">Physics System: Online.</div>
         <div style="display:flex; gap:3px;">
             <input type="text" id="comInput" style="background:#000; color:#fff; border:1px solid #333; flex-grow:1;" placeholder="Talk...">
             <button class="btn" onclick="addComment()">></button>
@@ -50,7 +50,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        let scene, camera, renderer, carGroup, wallGroup;
+        let scene, camera, renderer, carGroup, wallGroup, trackCurve;
         let keys = {}, playerYaw = 0, speed = 0;
         let startTime = 0, bestTime = Infinity, lapActive = false, checkpointReached = false, racePrompted = false;
         let nitroCooldown = false, nitroMult = 1, cyanNeon, limeNeon;
@@ -68,13 +68,13 @@
 
             scene.add(new THREE.GridHelper(10000, 160, 0x00ffff, 0x050505));
 
-            const curve = new THREE.CatmullRomCurve3([
+            trackCurve = new THREE.CatmullRomCurve3([
                 new THREE.Vector3(0, 0, 0), new THREE.Vector3(1500, 0, 1500),
                 new THREE.Vector3(4000, 0, 500), new THREE.Vector3(3000, 0, -2500),
                 new THREE.Vector3(1000, 0, -1500),
             ], true);
 
-            const points = curve.getPoints(300);
+            const points = trackCurve.getPoints(300);
             const roadGeo = new THREE.BufferGeometry();
             const verts = [], indices = [];
             
@@ -82,7 +82,7 @@
             wallGroup.visible = false;
             scene.add(wallGroup);
 
-            const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
+            const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
 
             for (let i = 0; i <= points.length; i++) {
                 const curr = points[i % points.length], next = points[(i + 1) % points.length];
@@ -92,7 +92,6 @@
                 verts.push(curr.x + side.x, 0.05, curr.z + side.z, curr.x - side.x, 0.05, curr.z - side.z);
                 if (i < points.length) { const b = i * 2; indices.push(b, b+1, b+2, b+1, b+3, b+2); }
 
-                // Create Wall segments
                 const wallH = 15;
                 const wallGeoL = new THREE.PlaneGeometry(next.distanceTo(curr), wallH);
                 const wL = new THREE.Mesh(wallGeoL, wallMat);
@@ -130,15 +129,11 @@
             const chromeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1.0, roughness: 0.1 }); 
             cyanNeon = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 5 });
             limeNeon = new THREE.MeshStandardMaterial({ color: 0x32cd32, emissive: 0x32cd32, emissiveIntensity: 5 });
-
             const body = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.8, 10.5), chromeMat);
             body.position.y = 0.6; carGroup.add(body);
             const cockpit = new THREE.Mesh(new THREE.SphereGeometry(1.8, 16, 16), new THREE.MeshPhysicalMaterial({color: 0x000, metalness: 1}));
             cockpit.scale.set(1, 0.6, 2.8); cockpit.position.set(0, 1.1, 0.6); carGroup.add(cockpit);
-
             const splitter = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.1, 2.2), limeNeon); splitter.position.set(0, 0.2, 5.2); carGroup.add(splitter);
-            const podL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 6.5), cyanNeon); podL.position.set(2.7, 0.5, 0); carGroup.add(podL);
-            const podR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 6.5), cyanNeon); podR.position.set(-2.7, 0.5, 0); carGroup.add(podR);
             const wing = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.1, 2.5), limeNeon); wing.position.set(0, 2.4, -4.8); carGroup.add(wing);
 
             const wGeo = new THREE.CylinderGeometry(1.1, 1.1, 0.9, 32);
@@ -178,17 +173,29 @@
             if (keys['KeyA']) playerYaw += 0.052;
             if (keys['KeyD']) playerYaw -= 0.052;
 
+            let nextX = carGroup.position.x + Math.sin(playerYaw) * speed;
+            let nextZ = carGroup.position.z + Math.cos(playerYaw) * speed;
+
+            // SOLID WALL COLLISION LOGIC
+            if (wallGroup.visible) {
+                const closestPoint = trackCurve.getPointAt(trackCurve.getUtoTmapping(0, trackCurve.findClosestPointToPoint(new THREE.Vector3(nextX, 0, nextZ))));
+                const distToCenter = new THREE.Vector3(nextX, 0, nextZ).distanceTo(closestPoint);
+                
+                if (distToCenter > 72) { // 75 is road edge, 72 gives buffer for car width
+                    speed *= -0.3; // Bounce back
+                    document.getElementById('commentList').innerHTML += `<div style="color:#ff0000;"><b>HIT!</b> Speed Loss.</div>`;
+                    return; // Stop the movement
+                }
+            }
+
             carGroup.rotation.y = playerYaw;
-            carGroup.position.x += Math.sin(playerYaw) * speed;
-            carGroup.position.z += Math.cos(playerYaw) * speed;
+            carGroup.position.x = nextX;
+            carGroup.position.z = nextZ;
 
             if (carGroup.position.z >= 0 && !racePrompted) {
                 speed = 0; keys = {}; racePrompted = true;
                 if (confirm("READY FOR THE RACERS?")) { 
-                    startTime = Date.now(); 
-                    lapActive = true; 
-                    wallGroup.visible = true; // DEPLOY WALLS
-                    document.getElementById('commentList').innerHTML += `<div style="color:#00ffff;"><b>SYSTEM:</b> Safety Walls Deployed. Race Start.</div>`;
+                    startTime = Date.now(); lapActive = true; wallGroup.visible = true; 
                 }
             }
 
