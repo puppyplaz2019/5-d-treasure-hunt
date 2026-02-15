@@ -1,17 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>The Racers - V100 Fixed</title>
+    <title>The Racers - V101 STABLE</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
-        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; }
+        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; }
         #timerBox { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 10px; border: 2px solid #00ffff; border-radius: 10px; text-align: center; min-width: 160px; box-shadow: 0 0 10px #00ffff; }
         #nitroBox { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; border: 1px solid #ff0000; font-weight: bold; }
-        #shareBtn { position: absolute; top: 10px; right: 20px; background: #32cd32; color: #000; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; border: 2px solid #fff; z-index: 20; }
-        #tipJar { position: absolute; bottom: 195px; right: 20px; background: linear-gradient(45deg, #111, #00ffff); padding: 12px; border-radius: 10px; border: 2px solid #fff; color: #fff; font-weight: bold; text-align: center; cursor: pointer; box-shadow: 0 0 15px #00ffff; z-index: 25; }
-        #commentBox { position: absolute; bottom: 20px; left: 20px; background: rgba(10,10,10,0.9); padding: 15px; border: 1px solid #555; width: 280px; border-radius: 5px; }
-        #commentList { height: 80px; overflow-y: auto; font-size: 11px; margin-bottom: 5px; border-bottom: 1px solid #333; }
-        .btn { cursor: pointer; background: #32cd32; color: #000; border: none; padding: 5px 10px; font-weight: bold; }
+        #tipJar { position: absolute; bottom: 20px; right: 20px; background: linear-gradient(45deg, #111, #00ffff); padding: 12px; border-radius: 10px; border: 2px solid #fff; color: #fff; font-weight: bold; text-align: center; cursor: pointer; }
+        .btn { cursor: pointer; background: #32cd32; color: #000; border: none; padding: 10px 20px; font-weight: bold; border-radius: 5px; }
         #overlay { position: absolute; width: 100%; height: 100%; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
     </style>
 </head>
@@ -19,185 +16,162 @@
 
     <div id="overlay">
         <h1 style="color:#ffffff; letter-spacing:12px; text-shadow: 0 0 20px #00ffff;">THE RACERS</h1>
-        <p style="color:#00ffff; margin-top:-15px; letter-spacing:3px;">V100: STABILITY PATCH</p>
-        <button class="btn" style="font-size:18px; padding:12px 40px; background:#fff; margin-top:20px;" onclick="start()">IGNITION</button>
+        <p style="color:#00ffff;">V101: CORE MOVEMENT FIXED</p>
+        <button class="btn" onclick="start()">START ENGINE</button>
     </div>
 
     <div id="timerBox">
-        <div id="currTime" style="font-size: 22px; font-weight: bold;">00:00.00</div>
-        <div id="bestTime" style="font-size: 11px; color: #32cd32;">BEST: --:--.--</div>
+        <div id="currTime" style="font-size: 24px; font-weight: bold;">00:00.00</div>
+        <div id="bestTime" style="font-size: 12px; color: #32cd32;">BEST: --:--.--</div>
     </div>
 
     <div id="nitroBox">NITRO: READY (SHIFT)</div>
-    <div id="shareBtn" onclick="copyLink()">🔗 SHARE CHALLENGE</div>
 
     <div id="ui">
         <b>WASD</b>: Drive | <b>SHIFT</b>: Nitro<br>
-        <small style="color: #00ffff;">Drive forward to start race!</small>
+        <b>R</b>: Reset Car<br>
+        <small style="color: #00ffff;">ESOFA CIRCUIT</small>
     </div>
 
-    <div id="tipJar" onclick="openJimmyTip()">🥁 TIP ESOFA</div>
-
-    <div id="commentBox">
-        <b>💬 CHAT</b>
-        <div id="commentList">Physics Corrected. Drive Forward.</div>
-        <div style="display:flex; gap:3px;">
-            <input type="text" id="comInput" style="background:#000; color:#fff; border:1px solid #333; flex-grow:1;" placeholder="Talk...">
-            <button class="btn" onclick="addComment()">></button>
-        </div>
-    </div>
+    <div id="tipJar" onclick="window.open('https://www.sanangelogives.org/organization/emmanuelschooloffinearts')">🥁 TIP ESOFA</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        let scene, camera, renderer, carGroup, wallGroup, trackCurve;
+        let scene, camera, renderer, carGroup, wallGroup;
         let keys = {}, playerYaw = 0, speed = 0;
-        let startTime = 0, bestTime = Infinity, lapActive = false, checkpointReached = false, racePrompted = false;
+        let startTime = 0, bestTime = Infinity, lapActive = false, checkpointReached = false;
         let nitroCooldown = false, nitroMult = 1, cyanNeon, limeNeon;
 
         function start() { document.getElementById('overlay').style.display = 'none'; init(); }
-        function copyLink() { navigator.clipboard.writeText(window.location.href); alert("Link Copied!"); }
 
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020205);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 10000);
+            
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.GridHelper(10000, 160, 0x00ffff, 0x050505));
+            scene.add(new THREE.GridHelper(5000, 100, 0x00ffff, 0x050505));
 
-            trackCurve = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(0, 0, 0), new THREE.Vector3(1500, 0, 1500),
-                new THREE.Vector3(4000, 0, 500), new THREE.Vector3(3000, 0, -2500),
-                new THREE.Vector3(1000, 0, -1500),
-            ], true);
+            // Track Design
+            const roadGeo = new THREE.PlaneGeometry(150, 5000);
+            const roadMat = new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.8 });
+            const road = new THREE.Mesh(roadGeo, roadMat);
+            road.rotation.x = -Math.PI / 2;
+            scene.add(road);
 
-            const points = trackCurve.getPoints(300);
-            const roadGeo = new THREE.BufferGeometry();
-            const verts = [], indices = [];
-            
+            // Safety Walls (Now using simple Box Geometry for better collision)
             wallGroup = new THREE.Group();
+            const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.2 });
+            const leftWall = new THREE.Mesh(new THREE.BoxGeometry(5, 20, 5000), wallMat);
+            leftWall.position.set(75, 10, 0);
+            const rightWall = new THREE.Mesh(new THREE.BoxGeometry(5, 20, 5000), wallMat);
+            rightWall.position.set(-75, 10, 0);
+            wallGroup.add(leftWall, rightWall);
             wallGroup.visible = false;
             scene.add(wallGroup);
 
-            const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-
-            for (let i = 0; i <= points.length; i++) {
-                const curr = points[i % points.length], next = points[(i + 1) % points.length];
-                const dir = new THREE.Vector3().subVectors(next, curr).normalize();
-                const side = new THREE.Vector3(0, 1, 0).cross(dir).multiplyScalar(75);
-                
-                verts.push(curr.x + side.x, 0.05, curr.z + side.z, curr.x - side.x, 0.05, curr.z - side.z);
-                if (i < points.length) { const b = i * 2; indices.push(b, b+1, b+2, b+1, b+3, b+2); }
-
-                const wallH = 15;
-                const wallGeoL = new THREE.PlaneGeometry(next.distanceTo(curr), wallH);
-                const wL = new THREE.Mesh(wallGeoL, wallMat);
-                wL.position.set(curr.x + side.x, wallH/2, curr.z + side.z);
-                wL.lookAt(next.x + side.x, wallH/2, next.z + side.z);
-                wL.rotation.y += Math.PI/2;
-                wallGroup.add(wL);
-
-                const wR = new THREE.Mesh(wallGeoL, wallMat);
-                wR.position.set(curr.x - side.x, wallH/2, curr.z - side.z);
-                wR.lookAt(next.x - side.x, wallH/2, next.z - side.z);
-                wR.rotation.y += Math.PI/2;
-                wallGroup.add(wR);
-            }
-            roadGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-            roadGeo.setIndex(indices); roadGeo.computeVertexNormals();
-            scene.add(new THREE.Mesh(roadGeo, new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.7 })));
-
-            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
             createCar();
+
             window.addEventListener('keydown', e => {
                 keys[e.code] = true;
                 if(e.code === 'ShiftLeft' && !nitroCooldown) activateNitro();
+                if(e.code === 'KeyR') resetCar();
             });
             window.addEventListener('keyup', e => delete keys[e.code]);
+            
             animate();
         }
 
         function createCar() {
             carGroup = new THREE.Group();
-            const chromeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1.0, roughness: 0.1 }); 
-            cyanNeon = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 5 });
-            limeNeon = new THREE.MeshStandardMaterial({ color: 0x32cd32, emissive: 0x32cd32, emissiveIntensity: 5 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.8, 10.5), chromeMat);
-            body.position.y = 0.6; carGroup.add(body);
-            const cockpit = new THREE.Mesh(new THREE.SphereGeometry(1.8, 16, 16), new THREE.MeshPhysicalMaterial({color: 0x000, metalness: 1}));
-            cockpit.scale.set(1, 0.6, 2.8); cockpit.position.set(0, 1.1, 0.6); carGroup.add(cockpit);
-            const splitter = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.1, 2.2), limeNeon); splitter.position.set(0, 0.2, 5.2); carGroup.add(splitter);
-            const wing = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.1, 2.5), limeNeon); wing.position.set(0, 2.4, -4.8); carGroup.add(wing);
+            const chrome = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 });
+            cyanNeon = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff });
+            limeNeon = new THREE.MeshStandardMaterial({ color: 0x32cd32, emissive: 0x32cd32 });
 
-            const wGeo = new THREE.CylinderGeometry(1.1, 1.1, 0.9, 32);
-            [[2.9, 3.8], [-2.9, 3.8], [2.9, -3.8], [-2.9, -3.8]].forEach((p, i) => {
-                const w = new THREE.Mesh(wGeo, new THREE.MeshStandardMaterial({color: 0x050505}));
-                w.rotation.z = Math.PI/2; w.position.set(p[0], 1.1, p[1]);
-                const rim = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.08, 8, 24), i % 2 === 0 ? cyanNeon : limeNeon);
-                rim.rotation.y = Math.PI/2; rim.position.x = p[0] > 0 ? 0.48 : -0.48;
-                w.add(rim); carGroup.add(w);
-            });
-            carGroup.position.set(0, 0, -100); // Start farther back
+            const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.5, 10), chrome);
+            body.position.y = 1;
+            carGroup.add(body);
+
+            const wing = new THREE.Mesh(new THREE.BoxGeometry(7, 0.5, 2), limeNeon);
+            wing.position.set(0, 3, -4);
+            carGroup.add(wing);
+
+            carGroup.position.set(0, 0, -50);
             scene.add(carGroup);
+        }
+
+        function resetCar() {
+            speed = 0;
+            playerYaw = 0;
+            carGroup.position.set(0, 0, -50);
         }
 
         function activateNitro() {
             nitroCooldown = true; nitroMult = 5;
-            cyanNeon.emissive.set(0xffffff); limeNeon.emissive.set(0xffffff);
             document.getElementById('nitroBox').innerText = "NITRO: ACTIVE!!";
+            document.getElementById('nitroBox').style.color = "#00ffff";
             setTimeout(() => {
-                nitroMult = 1; cyanNeon.emissive.set(0x00ffff); limeNeon.emissive.set(0x32cd32);
+                nitroMult = 1;
                 document.getElementById('nitroBox').innerText = "NITRO: COOLING...";
+                document.getElementById('nitroBox').style.color = "#ffff00";
             }, 1000);
-            setTimeout(() => { nitroCooldown = false; document.getElementById('nitroBox').innerText = "NITRO: READY (SHIFT)"; }, 6000);
+            setTimeout(() => {
+                nitroCooldown = false;
+                document.getElementById('nitroBox').innerText = "NITRO: READY (SHIFT)";
+                document.getElementById('nitroBox').style.color = "#ff0000";
+            }, 6000);
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            let accel = 0.19 * nitroMult;
-            if (keys['KeyW']) speed = Math.min(speed + accel, 6.0 * nitroMult);
-            else if (keys['KeyS']) speed = Math.max(speed - 0.19, -2.8);
-            else speed *= 0.96;
 
-            if (keys['KeyA']) playerYaw += 0.052;
-            if (keys['KeyD']) playerYaw -= 0.052;
+            // Basic Movement
+            if (keys['KeyW']) speed = Math.min(speed + (0.2 * nitroMult), 5 * nitroMult);
+            else if (keys['KeyS']) speed = Math.max(speed - 0.2, -2);
+            else speed *= 0.97;
 
+            if (keys['KeyA']) playerYaw += 0.04;
+            if (keys['KeyD']) playerYaw -= 0.04;
+
+            // Collision with Walls
             let nextX = carGroup.position.x + Math.sin(playerYaw) * speed;
-            let nextZ = carGroup.position.z + Math.cos(playerYaw) * speed;
-
-            // Collision check only when walls are visible
-            if (wallGroup.visible) {
-                const u = trackCurve.getUtoTmapping(0, trackCurve.findClosestPointToPoint(new THREE.Vector3(nextX, 0, nextZ)));
-                const cp = trackCurve.getPointAt(u);
-                if (new THREE.Vector3(nextX, 0, nextZ).distanceTo(cp) > 70) {
-                    speed *= -0.4;
-                    return;
-                }
+            if (Math.abs(nextX) > 70) {
+                speed *= -0.5;
+                nextX = carGroup.position.x;
             }
 
             carGroup.rotation.y = playerYaw;
-            carGroup.position.set(nextX, 0, nextZ);
+            carGroup.position.x = nextX;
+            carGroup.position.z += Math.cos(playerYaw) * speed;
 
-            if (carGroup.position.z >= 0 && !racePrompted) {
-                speed = 0; racePrompted = true;
-                if (confirm("START THE RACERS CIRCUIT?")) { 
-                    startTime = Date.now(); lapActive = true; wallGroup.visible = true; 
-                } else { racePrompted = false; carGroup.position.z = -10; } // Reset if cancel
+            // Start Race Trigger
+            if (carGroup.position.z > 0 && !lapActive) {
+                lapActive = true;
+                startTime = Date.now();
+                wallGroup.visible = true;
             }
 
+            // Lap Logic
             if (lapActive) {
                 let ms = Date.now() - startTime;
                 document.getElementById('currTime').innerText = formatTime(ms);
-                if (carGroup.position.length() > 800) checkpointReached = true;
-                if (carGroup.position.length() < 50 && checkpointReached) {
-                    if (ms < bestTime) { bestTime = ms; document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms); }
-                    startTime = Date.now(); checkpointReached = false;
+                if (carGroup.position.z > 2000) checkpointReached = true;
+                if (carGroup.position.z < 10 && checkpointReached) {
+                    if (ms < bestTime) {
+                        bestTime = ms;
+                        document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms);
+                    }
+                    checkpointReached = false;
+                    startTime = Date.now();
                 }
             }
-            camera.position.set(carGroup.position.x - Math.sin(playerYaw)*48, 28, carGroup.position.z - Math.cos(playerYaw)*48);
+
+            camera.position.set(carGroup.position.x - Math.sin(playerYaw)*40, 20, carGroup.position.z - Math.cos(playerYaw)*40);
             camera.lookAt(carGroup.position);
             renderer.render(scene, camera);
         }
@@ -206,8 +180,6 @@
             let s = Math.floor(ms/1000), c = Math.floor((ms%1000)/10);
             return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}.${c.toString().padStart(2,'0')}`;
         }
-        function openJimmyTip() { window.open("https://www.sanangelogives.org/organization/emmanuelschooloffinearts", '_blank'); }
-        function addComment() { const i = document.getElementById('comInput'); if(i.value) { document.getElementById('commentList').innerHTML += `<div><b>Racer:</b> ${i.value}</div>`; i.value = ""; } }
     </script>
 </body>
 </html>
