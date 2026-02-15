@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>The Racers - Solid Walls</title>
+    <title>The Racers - V100 Fixed</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
         #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; }
@@ -19,7 +19,7 @@
 
     <div id="overlay">
         <h1 style="color:#ffffff; letter-spacing:12px; text-shadow: 0 0 20px #00ffff;">THE RACERS</h1>
-        <p style="color:#ff0000; margin-top:-15px; letter-spacing:3px;">SOLID BARRIERS ENGAGED</p>
+        <p style="color:#00ffff; margin-top:-15px; letter-spacing:3px;">V100: STABILITY PATCH</p>
         <button class="btn" style="font-size:18px; padding:12px 40px; background:#fff; margin-top:20px;" onclick="start()">IGNITION</button>
     </div>
 
@@ -33,14 +33,14 @@
 
     <div id="ui">
         <b>WASD</b>: Drive | <b>SHIFT</b>: Nitro<br>
-        <small style="color: #00ffff;">Warning: Walls are SOLID during race</small>
+        <small style="color: #00ffff;">Drive forward to start race!</small>
     </div>
 
     <div id="tipJar" onclick="openJimmyTip()">🥁 TIP ESOFA</div>
 
     <div id="commentBox">
         <b>💬 CHAT</b>
-        <div id="commentList">Physics System: Online.</div>
+        <div id="commentList">Physics Corrected. Drive Forward.</div>
         <div style="display:flex; gap:3px;">
             <input type="text" id="comInput" style="background:#000; color:#fff; border:1px solid #333; flex-grow:1;" placeholder="Talk...">
             <button class="btn" onclick="addComment()">></button>
@@ -111,10 +111,6 @@
             scene.add(new THREE.Mesh(roadGeo, new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.7 })));
 
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-            const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(100, 500, 100); scene.add(sun);
-            const fl = new THREE.Mesh(new THREE.PlaneGeometry(160, 18), new THREE.MeshBasicMaterial({color: 0xffffff, transparent:true, opacity:0.6}));
-            fl.rotation.x = -Math.PI/2; fl.position.y = 0.1; scene.add(fl);
-
             createCar();
             window.addEventListener('keydown', e => {
                 keys[e.code] = true;
@@ -144,23 +140,19 @@
                 rim.rotation.y = Math.PI/2; rim.position.x = p[0] > 0 ? 0.48 : -0.48;
                 w.add(rim); carGroup.add(w);
             });
-            carGroup.position.set(0, 0, -65); scene.add(carGroup);
+            carGroup.position.set(0, 0, -100); // Start farther back
+            scene.add(carGroup);
         }
 
         function activateNitro() {
             nitroCooldown = true; nitroMult = 5;
             cyanNeon.emissive.set(0xffffff); limeNeon.emissive.set(0xffffff);
             document.getElementById('nitroBox').innerText = "NITRO: ACTIVE!!";
-            document.getElementById('nitroBox').style.color = "#00ffff";
             setTimeout(() => {
                 nitroMult = 1; cyanNeon.emissive.set(0x00ffff); limeNeon.emissive.set(0x32cd32);
                 document.getElementById('nitroBox').innerText = "NITRO: COOLING...";
-                document.getElementById('nitroBox').style.color = "#ffff00";
             }, 1000);
-            setTimeout(() => {
-                nitroCooldown = false; document.getElementById('nitroBox').innerText = "NITRO: READY (SHIFT)";
-                document.getElementById('nitroBox').style.color = "#ff0000";
-            }, 6000);
+            setTimeout(() => { nitroCooldown = false; document.getElementById('nitroBox').innerText = "NITRO: READY (SHIFT)"; }, 6000);
         }
 
         function animate() {
@@ -176,34 +168,31 @@
             let nextX = carGroup.position.x + Math.sin(playerYaw) * speed;
             let nextZ = carGroup.position.z + Math.cos(playerYaw) * speed;
 
-            // SOLID WALL COLLISION LOGIC
+            // Collision check only when walls are visible
             if (wallGroup.visible) {
-                const closestPoint = trackCurve.getPointAt(trackCurve.getUtoTmapping(0, trackCurve.findClosestPointToPoint(new THREE.Vector3(nextX, 0, nextZ))));
-                const distToCenter = new THREE.Vector3(nextX, 0, nextZ).distanceTo(closestPoint);
-                
-                if (distToCenter > 72) { // 75 is road edge, 72 gives buffer for car width
-                    speed *= -0.3; // Bounce back
-                    document.getElementById('commentList').innerHTML += `<div style="color:#ff0000;"><b>HIT!</b> Speed Loss.</div>`;
-                    return; // Stop the movement
+                const u = trackCurve.getUtoTmapping(0, trackCurve.findClosestPointToPoint(new THREE.Vector3(nextX, 0, nextZ)));
+                const cp = trackCurve.getPointAt(u);
+                if (new THREE.Vector3(nextX, 0, nextZ).distanceTo(cp) > 70) {
+                    speed *= -0.4;
+                    return;
                 }
             }
 
             carGroup.rotation.y = playerYaw;
-            carGroup.position.x = nextX;
-            carGroup.position.z = nextZ;
+            carGroup.position.set(nextX, 0, nextZ);
 
             if (carGroup.position.z >= 0 && !racePrompted) {
-                speed = 0; keys = {}; racePrompted = true;
-                if (confirm("READY FOR THE RACERS?")) { 
+                speed = 0; racePrompted = true;
+                if (confirm("START THE RACERS CIRCUIT?")) { 
                     startTime = Date.now(); lapActive = true; wallGroup.visible = true; 
-                }
+                } else { racePrompted = false; carGroup.position.z = -10; } // Reset if cancel
             }
 
             if (lapActive) {
                 let ms = Date.now() - startTime;
                 document.getElementById('currTime').innerText = formatTime(ms);
                 if (carGroup.position.length() > 800) checkpointReached = true;
-                if (carGroup.position.length() < 80 && checkpointReached) {
+                if (carGroup.position.length() < 50 && checkpointReached) {
                     if (ms < bestTime) { bestTime = ms; document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms); }
                     startTime = Date.now(); checkpointReached = false;
                 }
