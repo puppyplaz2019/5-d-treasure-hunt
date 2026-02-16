@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>The Racers - V111 Speed & Spirit</title>
+    <title>The Racers - V112 Friction & Drag</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
         #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; z-index: 10; }
         #timerBox { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 10px; border: 2px solid #00ffff; border-radius: 10px; text-align: center; min-width: 160px; box-shadow: 0 0 10px #00ffff; z-index: 10; }
         #nitroBox { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; border: 1px solid #ff0000; font-weight: bold; z-index: 10; }
         
-        /* New Speedometer Style */
         #speedoBox { position: absolute; bottom: 150px; left: 20px; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 50%; border: 3px solid #00ffff; width: 80px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 15px #00ffff; z-index: 20; }
         #speedNum { font-size: 28px; font-weight: bold; color: #00ffff; line-height: 1; }
         #speedUnit { font-size: 10px; color: #fff; margin-top: 2px; }
@@ -25,7 +24,7 @@
 
     <div id="overlay">
         <h1 style="color:#ffffff; letter-spacing:12px; text-shadow: 0 0 20px #00ffff;">THE RACERS</h1>
-        <p style="color:#00ffff;">V111: SPEEDOMETER & GHOST UPDATES</p>
+        <p style="color:#00ffff;">V112: FRICTION WALLS & MEGA STRAIGHTS</p>
         <button class="btn" style="font-size:18px; padding:12px 40px; background:#fff; margin-top:20px;" onclick="start()">IGNITION</button>
     </div>
 
@@ -43,14 +42,14 @@
 
     <div id="ui">
         <b>WASD</b>: Drive | <b>SHIFT</b>: Nitro<br>
-        <b>R</b>: Reset | <small style="color: #00ffff;">Watch the Speedo!</small>
+        <b>R</b>: Reset | <small style="color: #00ffff;">Scrape the walls to slow down!</small>
     </div>
 
     <div id="tipJar" onclick="window.open('https://www.sanangelogives.org/organization/emmanuelschooloffinearts')">🥁 TIP ESOFA</div>
 
     <div id="commentBox">
         <b>💬 CHAT</b>
-        <div id="commentList">Speedometer installed. Let's fly!</div>
+        <div id="commentList">Sliding physics enabled. Long straights active.</div>
         <div style="display:flex; gap:3px;">
             <input type="text" id="comInput" style="background:#000; color:#fff; border:1px solid #333; flex-grow:1;" placeholder="Talk...">
             <button class="btn" onclick="addComment()">></button>
@@ -79,35 +78,32 @@
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020205);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 20000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 30000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.GridHelper(10000, 100, 0x00ffff, 0x050505));
+            scene.add(new THREE.GridHelper(20000, 200, 0x00ffff, 0x050505));
 
-            const sLen = 800; const rad = 1000;
-            // Straight 1
-            for(let i=0; i<20; i++) trackMidpoints.push(new THREE.Vector3(rad, 0, (i/20)*sLen - sLen/2));
-            // Turn 1
+            // MEGA OVAL: 3000 unit straights
+            const sLen = 3000; const rad = 1000;
+            for(let i=0; i<40; i++) trackMidpoints.push(new THREE.Vector3(rad, 0, (i/40)*sLen - sLen/2));
             for(let i=0; i<=40; i++) { let a = (i/40)*Math.PI; trackMidpoints.push(new THREE.Vector3(Math.cos(a)*rad, 0, sLen/2 + Math.sin(a)*rad)); }
-            // Straight 2
-            for(let i=0; i<20; i++) trackMidpoints.push(new THREE.Vector3(-rad, 0, sLen/2 - (i/20)*sLen));
-            // Turn 2
+            for(let i=0; i<40; i++) trackMidpoints.push(new THREE.Vector3(-rad, 0, sLen/2 - (i/40)*sLen));
             for(let i=0; i<=40; i++) { let a = Math.PI + (i/40)*Math.PI; trackMidpoints.push(new THREE.Vector3(Math.cos(a)*rad, 0, -sLen/2 + Math.sin(a)*rad)); }
 
             wallGroup = new THREE.Group();
-            const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+            const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
             
             for(let i=0; i < trackMidpoints.length; i++){
                 let p1 = trackMidpoints[i], p2 = trackMidpoints[(i+1)%trackMidpoints.length];
                 let dir = new THREE.Vector3().subVectors(p2, p1).normalize();
                 let sideVec = new THREE.Vector3(-dir.z, 0, dir.x);
                 [75, -75].forEach(offset => {
-                    let w = new THREE.Mesh(new THREE.BoxGeometry(2, 30, p1.distanceTo(p2) + 1), wallMat);
+                    let w = new THREE.Mesh(new THREE.BoxGeometry(2, 40, p1.distanceTo(p2) + 2), wallMat);
                     let side = sideVec.clone().multiplyScalar(offset);
-                    w.position.set((p1.x+p2.x)/2 + side.x, 15, (p1.z+p2.z)/2 + side.z);
-                    w.lookAt(p2.x + side.x, 15, p2.z + side.z);
+                    w.position.set((p1.x+p2.x)/2 + side.x, 20, (p1.z+p2.z)/2 + side.z);
+                    w.lookAt(p2.x + side.x, 20, p2.z + side.z);
                     wallGroup.add(w);
                 });
             }
@@ -129,7 +125,7 @@
             carGroup = new THREE.Group();
             const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1 }));
             body.position.y = 1; carGroup.add(body);
-            carGroup.position.set(1000, 0, -100);
+            carGroup.position.set(1000, 0, -1400);
             scene.add(carGroup);
         }
 
@@ -141,18 +137,16 @@
             scene.add(ghostGroup);
         }
 
-        function resetCar() { speed = 0; playerYaw = 0; carGroup.position.set(1000, 0, -100); carGroup.rotation.y = 0; }
+        function resetCar() { speed = 0; playerYaw = 0; carGroup.position.set(1000, 0, -1400); carGroup.rotation.y = 0; }
 
         function activateNitro() {
             nitroCooldown = true; nitroMult = 5;
             document.getElementById('nitroBox').innerText = "NITRO: ACTIVE!!";
             document.getElementById('speedNum').style.color = "#ff0000";
-            document.getElementById('speedoBox').style.borderColor = "#ff0000";
             setTimeout(() => { 
                 nitroMult = 1; 
                 document.getElementById('nitroBox').innerText = "NITRO: COOLING...";
                 document.getElementById('speedNum').style.color = "#00ffff";
-                document.getElementById('speedoBox').style.borderColor = "#00ffff";
             }, 1000);
             setTimeout(() => { nitroCooldown = false; document.getElementById('nitroBox').innerText = "NITRO: READY (SHIFT)"; }, 6000);
         }
@@ -166,24 +160,34 @@
             if (keys['KeyA']) playerYaw += 0.045;
             if (keys['KeyD']) playerYaw -= 0.045;
 
-            // Speedometer update logic
-            let displaySpeed = Math.abs(Math.floor(speed * 40));
-            document.getElementById('speedNum').innerText = displaySpeed;
+            document.getElementById('speedNum').innerText = Math.abs(Math.floor(speed * 40));
 
             let nextX = carGroup.position.x + Math.sin(playerYaw) * speed;
             let nextZ = carGroup.position.z + Math.cos(playerYaw) * speed;
             
             let onTrack = false;
+            let closestProj = new THREE.Vector3();
             for(let i=0; i < trackMidpoints.length; i++){
                 let p1 = trackMidpoints[i], p2 = trackMidpoints[(i+1)%trackMidpoints.length];
                 let l2 = p1.distanceToSquared(p2);
                 let t = Math.max(0, Math.min(1, ((nextX - p1.x) * (p2.x - p1.x) + (nextZ - p1.z) * (p2.z - p1.z)) / l2));
-                let dist = Math.sqrt((nextX - (p1.x + t * (p2.x - p1.x)))**2 + (nextZ - (p1.z + t * (p2.z - p1.z)))**2);
-                if(dist < 72) { onTrack = true; break; }
+                let projX = p1.x + t * (p2.x - p1.x);
+                let projZ = p1.z + t * (p2.z - p1.z);
+                let dist = Math.sqrt((nextX - projX)**2 + (nextZ - projZ)**2);
+                if(dist < 72) { 
+                    onTrack = true; 
+                    closestProj.set(projX, 0, projZ);
+                    break; 
+                }
             }
 
-            if (!onTrack) { speed *= -0.6; } 
-            else { carGroup.position.set(nextX, 0, nextZ); }
+            if (!onTrack) { 
+                // Friction logic: Reduce speed by ~25 MPH (0.625 units) and stick to wall
+                speed = Math.max(0, speed - 0.625);
+                // Don't update position to 'next', keep it within bounds
+            } else { 
+                carGroup.position.set(nextX, 0, nextZ); 
+            }
             carGroup.rotation.y = playerYaw;
 
             if (lapActive && bestLapData.length > 0) {
@@ -195,7 +199,8 @@
                 }
             }
 
-            if (carGroup.position.x > 800 && carGroup.position.z > 100 && !lapActive) {
+            // Lap Detection adjusted for longer track
+            if (carGroup.position.x > 800 && carGroup.position.z > 500 && !lapActive) {
                 lapActive = true; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
             }
             if (lapActive) {
@@ -203,7 +208,7 @@
                 let ms = Date.now() - startTime;
                 document.getElementById('currTime').innerText = formatTime(ms);
                 if (carGroup.position.x < -800) checkpointReached = true;
-                if (carGroup.position.x > 800 && carGroup.position.z < -100 && checkpointReached) {
+                if (carGroup.position.x > 800 && carGroup.position.z < -500 && checkpointReached) {
                     if (ms < bestTime) { bestTime = ms; bestLapData = [...currentLapData]; document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms); }
                     checkpointReached = false; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
                 }
