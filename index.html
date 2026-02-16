@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>The Racers - V109 FIXED OVAL</title>
+    <title>The Racers - V110 Ghost-Buster Oval</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
         #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; z-index: 10; }
@@ -19,7 +19,7 @@
 
     <div id="overlay">
         <h1 style="color:#ffffff; letter-spacing:12px; text-shadow: 0 0 20px #00ffff;">THE RACERS</h1>
-        <p style="color:#00ffff;">V109: INVISIBLE WALLS REMOVED</p>
+        <p style="color:#00ffff;">V110: PERFECT OVAL & ZERO SNAGS</p>
         <button class="btn" style="font-size:18px; padding:12px 40px; background:#fff; margin-top:20px;" onclick="start()">IGNITION</button>
     </div>
 
@@ -32,14 +32,14 @@
 
     <div id="ui">
         <b>WASD</b>: Drive | <b>SHIFT</b>: Nitro<br>
-        <b>R</b>: Reset | <small style="color: #00ffff;">Fixed Start Line Snagging</small>
+        <b>R</b>: Reset | <small style="color: #00ffff;">Collision Logic Rebuilt</small>
     </div>
 
     <div id="tipJar" onclick="window.open('https://www.sanangelogives.org/organization/emmanuelschooloffinearts')">🥁 TIP ESOFA</div>
 
     <div id="commentBox">
         <b>💬 CHAT</b>
-        <div id="commentList">Invisible wall patch applied.</div>
+        <div id="commentList">Oval geometry welded. Walls aligned.</div>
         <div style="display:flex; gap:3px;">
             <input type="text" id="comInput" style="background:#000; color:#fff; border:1px solid #333; flex-grow:1;" placeholder="Talk...">
             <button class="btn" onclick="addComment()">></button>
@@ -56,49 +56,54 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        let scene, camera, renderer, carGroup, ghostGroup, wallGroup, trackPoints = [];
+        let scene, camera, renderer, carGroup, ghostGroup, wallGroup;
         let keys = {}, playerYaw = 0, speed = 0;
         let startTime = 0, bestTime = Infinity, lapActive = false, checkpointReached = false;
         let nitroCooldown = false, nitroMult = 1;
         let currentLapData = [], bestLapData = [], ghostFrame = 0;
+        let trackMidpoints = [];
 
         function start() { document.getElementById('overlay').style.display = 'none'; init(); }
 
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x020205);
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 15000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 20000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
             scene.add(new THREE.GridHelper(10000, 100, 0x00ffff, 0x050505));
 
+            // Generate Path Points for a Perfect Oval
             const sLen = 800; const rad = 1000;
-            // Build visual walls
+            // Straight 1
+            for(let i=0; i<20; i++) trackMidpoints.push(new THREE.Vector3(rad, 0, (i/20)*sLen - sLen/2));
+            // Turn 1
+            for(let i=0; i<=40; i++) { let a = (i/40)*Math.PI; trackMidpoints.push(new THREE.Vector3(Math.cos(a)*rad, 0, sLen/2 + Math.sin(a)*rad)); }
+            // Straight 2
+            for(let i=0; i<20; i++) trackMidpoints.push(new THREE.Vector3(-rad, 0, sLen/2 - (i/20)*sLen));
+            // Turn 2
+            for(let i=0; i<=40; i++) { let a = Math.PI + (i/40)*Math.PI; trackMidpoints.push(new THREE.Vector3(Math.cos(a)*rad, 0, -sLen/2 + Math.sin(a)*rad)); }
+
+            // Build Walls based on the path
             wallGroup = new THREE.Group();
-            const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+            const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
             
-            // Wall Geometry logic for the Oval
-            const createWallLine = (p1, p2, offset) => {
+            for(let i=0; i < trackMidpoints.length; i++){
+                let p1 = trackMidpoints[i];
+                let p2 = trackMidpoints[(i+1)%trackMidpoints.length];
                 let dir = new THREE.Vector3().subVectors(p2, p1).normalize();
-                let side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(offset);
-                let w = new THREE.Mesh(new THREE.BoxGeometry(2, 25, p1.distanceTo(p2)+5), wallMat);
-                w.position.set((p1.x+p2.x)/2 + side.x, 12.5, (p1.z+p2.z)/2 + side.z);
-                w.lookAt(p2.x + side.x, 12.5, p2.z + side.z);
-                wallGroup.add(w);
-            }
+                let sideVec = new THREE.Vector3(-dir.z, 0, dir.x);
 
-            // Simple Oval Pathing
-            const path = [];
-            for(let i=0; i<10; i++) path.push(new THREE.Vector3(rad, 0, (i/10)*sLen - sLen/2));
-            for(let i=0; i<=20; i++) { let a = (i/20)*Math.PI; path.push(new THREE.Vector3(Math.cos(a)*rad,0,sLen/2+Math.sin(a)*rad)); }
-            for(let i=0; i<10; i++) path.push(new THREE.Vector3(-rad, 0, sLen/2 - (i/10)*sLen));
-            for(let i=0; i<=20; i++) { let a = Math.PI+(i/20)*Math.PI; path.push(new THREE.Vector3(Math.cos(a)*rad,0,-sLen/2+Math.sin(a)*rad)); }
-
-            for(let i=0; i<path.length; i++) {
-                createWallLine(path[i], path[(i+1)%path.length], 75);
-                createWallLine(path[i], path[(i+1)%path.length], -75);
+                // Create Inner and Outer Wall Segments
+                [75, -75].forEach(offset => {
+                    let w = new THREE.Mesh(new THREE.BoxGeometry(2, 30, p1.distanceTo(p2) + 1), wallMat);
+                    let side = sideVec.clone().multiplyScalar(offset);
+                    w.position.set((p1.x+p2.x)/2 + side.x, 15, (p1.z+p2.z)/2 + side.z);
+                    w.lookAt(p2.x + side.x, 15, p2.z + side.z);
+                    wallGroup.add(w);
+                });
             }
             scene.add(wallGroup);
             scene.add(new THREE.AmbientLight(0xffffff, 2.0));
@@ -125,13 +130,13 @@
 
         function createGhost() {
             ghostGroup = new THREE.Group();
-            const ghostMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.4, wireframe: true });
+            const ghostMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, wireframe: true });
             ghostGroup.add(new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), ghostMat));
             ghostGroup.visible = false;
             scene.add(ghostGroup);
         }
 
-        function resetCar() { speed = 0; playerYaw = 0; carGroup.position.set(1000, 0, -100); }
+        function resetCar() { speed = 0; playerYaw = 0; carGroup.position.set(1000, 0, -100); carGroup.rotation.y = 0; }
 
         function activateNitro() {
             nitroCooldown = true; nitroMult = 5;
@@ -142,7 +147,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            if (keys['KeyW']) speed = Math.min(speed + (0.14 * nitroMult), 5.5 * nitroMult);
+            if (keys['KeyW']) speed = Math.min(speed + (0.15 * nitroMult), 5.6 * nitroMult);
             else if (keys['KeyS']) speed = Math.max(speed - 0.2, -2);
             else speed *= 0.985;
 
@@ -152,19 +157,25 @@
             let nextX = carGroup.position.x + Math.sin(playerYaw) * speed;
             let nextZ = carGroup.position.z + Math.cos(playerYaw) * speed;
             
-            // New "Sausage" Collision (Calculates distance to two focal points)
-            let zLimit = 400; // half of sLen
-            let checkZ = Math.max(-zLimit, Math.min(zLimit, nextZ));
-            let dx = nextX - (nextX > 0 ? 1000 : -1000);
-            let dz = nextZ - checkZ;
-            let distToCenterLine = Math.sqrt(dx*dx + dz*dz);
+            // Rock-Solid Segment Collision
+            let onTrack = false;
+            for(let i=0; i < trackMidpoints.length; i++){
+                let p1 = trackMidpoints[i];
+                let p2 = trackMidpoints[(i+1)%trackMidpoints.length];
+                
+                // Find distance to the line segment p1-p2
+                let l2 = p1.distanceToSquared(p2);
+                let t = ((nextX - p1.x) * (p2.x - p1.x) + (nextZ - p1.z) * (p2.z - p1.z)) / l2;
+                t = Math.max(0, Math.min(1, t));
+                let projectionX = p1.x + t * (p2.x - p1.x);
+                let projectionZ = p1.z + t * (p2.z - p1.z);
+                let dist = Math.sqrt((nextX - projectionX)**2 + (nextZ - projectionZ)**2);
+                
+                if(dist < 72) { onTrack = true; break; }
+            }
 
-            if (Math.abs(nextX) > 1075 || Math.abs(nextX) < 925 && distToCenterLine > 70) {
-                 // Simplified Radial collision
-                 let radialDist = Math.sqrt((Math.abs(nextX)-1000)**2 + (Math.max(0, Math.abs(nextZ)-400))**2);
-                 if(radialDist > 70 || radialDist < -70) { speed *= -0.5; }
-                 else { carGroup.position.set(nextX, 0, nextZ); }
-            } else { carGroup.position.set(nextX, 0, nextZ); }
+            if (!onTrack) { speed *= -0.6; } 
+            else { carGroup.position.set(nextX, 0, nextZ); }
 
             carGroup.rotation.y = playerYaw;
 
@@ -179,15 +190,15 @@
             }
 
             // Lap Detection
-            if (carGroup.position.x > 900 && carGroup.position.z > 50 && !lapActive) {
+            if (carGroup.position.x > 800 && carGroup.position.z > 100 && !lapActive) {
                 lapActive = true; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
             }
             if (lapActive) {
                 currentLapData.push({x: carGroup.position.x, z: carGroup.position.z, yaw: carGroup.rotation.y});
                 let ms = Date.now() - startTime;
                 document.getElementById('currTime').innerText = formatTime(ms);
-                if (carGroup.position.x < -900) checkpointReached = true;
-                if (carGroup.position.x > 900 && carGroup.position.z < -50 && checkpointReached) {
+                if (carGroup.position.x < -800) checkpointReached = true;
+                if (carGroup.position.x > 800 && carGroup.position.z < -100 && checkpointReached) {
                     if (ms < bestTime) { bestTime = ms; bestLapData = [...currentLapData]; document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms); }
                     checkpointReached = false; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
                 }
