@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>The Racers - V107 Oval Speedway</title>
+    <title>The Racers - V108 GHOST MODE</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
         #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; z-index: 10; }
@@ -19,7 +19,7 @@
 
     <div id="overlay">
         <h1 style="color:#ffffff; letter-spacing:12px; text-shadow: 0 0 20px #00ffff;">THE RACERS</h1>
-        <p style="color:#00ffff;">V107: OVAL SPEEDWAY EDITION</p>
+        <p style="color:#00ffff;">V108: GHOST RECORDING ACTIVE</p>
         <button class="btn" style="font-size:18px; padding:12px 40px; background:#fff; margin-top:20px;" onclick="start()">IGNITION</button>
     </div>
 
@@ -32,14 +32,14 @@
 
     <div id="ui">
         <b>WASD</b>: Drive | <b>SHIFT</b>: Nitro<br>
-        <b>R</b>: Reset | <small style="color: #00ffff;">Straightaways = Top Speed</small>
+        <b>R</b>: Reset | <small style="color: #00ffff;">Race your Best Lap!</small>
     </div>
 
     <div id="tipJar" onclick="window.open('https://www.sanangelogives.org/organization/emmanuelschooloffinearts')">🥁 TIP ESOFA</div>
 
     <div id="commentBox">
         <b>💬 CHAT</b>
-        <div id="commentList">Oval track initialized. Go fast!</div>
+        <div id="commentList">Ghost car enabled. Beat 20s!</div>
         <div style="display:flex; gap:3px;">
             <input type="text" id="comInput" style="background:#000; color:#fff; border:1px solid #333; flex-grow:1;" placeholder="Talk...">
             <button class="btn" onclick="addComment()">></button>
@@ -56,10 +56,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
     <script>
-        let scene, camera, renderer, carGroup, wallGroup, trackPoints = [];
+        let scene, camera, renderer, carGroup, ghostGroup, wallGroup, trackPoints = [];
         let keys = {}, playerYaw = 0, speed = 0;
         let startTime = 0, bestTime = Infinity, lapActive = false, checkpointReached = false;
-        let nitroCooldown = false, nitroMult = 1, cyanNeon, limeNeon;
+        let nitroCooldown = false, nitroMult = 1;
+        let currentLapData = [], bestLapData = [], ghostFrame = 0;
 
         function start() { document.getElementById('overlay').style.display = 'none'; init(); }
 
@@ -73,49 +74,31 @@
 
             scene.add(new THREE.GridHelper(10000, 100, 0x00ffff, 0x050505));
 
-            // Create Oval Track Points
-            const straightLen = 800;
-            const radius = 1000;
-            
-            // Right Straight
+            const straightLen = 800; const radius = 1000;
             for(let i=0; i<10; i++) trackPoints.push(new THREE.Vector3(radius, 0, (i/10)*straightLen - straightLen/2));
-            // Top Turn
-            for(let i=0; i<=20; i++) {
-                let a = (i/20) * Math.PI;
-                trackPoints.push(new THREE.Vector3(Math.cos(a)*radius, 0, straightLen/2 + Math.sin(a)*radius));
-            }
-            // Left Straight
+            for(let i=0; i<=20; i++) { let a = (i/20) * Math.PI; trackPoints.push(new THREE.Vector3(Math.cos(a)*radius, 0, straightLen/2 + Math.sin(a)*radius)); }
             for(let i=0; i<10; i++) trackPoints.push(new THREE.Vector3(-radius, 0, straightLen/2 - (i/10)*straightLen));
-            // Bottom Turn
-            for(let i=0; i<=20; i++) {
-                let a = Math.PI + (i/20) * Math.PI;
-                trackPoints.push(new THREE.Vector3(Math.cos(a)*radius, 0, -straightLen/2 + Math.sin(a)*radius));
-            }
+            for(let i=0; i<=20; i++) { let a = Math.PI + (i/20) * Math.PI; trackPoints.push(new THREE.Vector3(Math.cos(a)*radius, 0, -straightLen/2 + Math.sin(a)*radius)); }
 
             wallGroup = new THREE.Group();
             const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-
             for (let i = 0; i < trackPoints.length; i++) {
-                let p1 = trackPoints[i];
-                let p2 = trackPoints[(i+1)%trackPoints.length];
+                let p1 = trackPoints[i], p2 = trackPoints[(i+1)%trackPoints.length];
                 let dir = new THREE.Vector3().subVectors(p2, p1).normalize();
                 let sideL = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(65);
                 let sideR = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(-65);
-
                 let wL = new THREE.Mesh(new THREE.BoxGeometry(2, 20, p1.distanceTo(p2)+2), wallMat);
                 wL.position.set((p1.x+p2.x)/2 + sideL.x, 10, (p1.z+p2.z)/2 + sideL.z);
-                wL.lookAt(p2.x + sideL.x, 10, p2.z + sideL.z);
-                wallGroup.add(wL);
-
+                wL.lookAt(p2.x + sideL.x, 10, p2.z + sideL.z); wallGroup.add(wL);
                 let wR = new THREE.Mesh(new THREE.BoxGeometry(2, 20, p1.distanceTo(p2)+2), wallMat);
                 wR.position.set((p1.x+p2.x)/2 + sideR.x, 10, (p1.z+p2.z)/2 + sideR.z);
-                wR.lookAt(p2.x + sideR.x, 10, p2.z + sideR.z);
-                wallGroup.add(wR);
+                wR.lookAt(p2.x + sideR.x, 10, p2.z + sideR.z); wallGroup.add(wR);
             }
             scene.add(wallGroup);
-
             scene.add(new THREE.AmbientLight(0xffffff, 1.8));
+
             createCar();
+            createGhost();
 
             window.addEventListener('keydown', e => {
                 keys[e.code] = true;
@@ -129,18 +112,19 @@
         function createCar() {
             carGroup = new THREE.Group();
             const chrome = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 });
-            cyanNeon = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x00ffff, emissiveIntensity: 5 });
-            limeNeon = new THREE.MeshStandardMaterial({ color: 0x32cd32, emissive: 0x32cd32, emissiveIntensity: 5 });
-
             const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), chrome);
             body.position.y = 1; carGroup.add(body);
-            const pL = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 6), cyanNeon);
-            pL.position.set(2.6, 0.8, 0); carGroup.add(pL);
-            const pR = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 6), limeNeon);
-            pR.position.set(-2.6, 0.8, 0); carGroup.add(pR);
-
             carGroup.position.set(1000, 0, -100);
             scene.add(carGroup);
+        }
+
+        function createGhost() {
+            ghostGroup = new THREE.Group();
+            const ghostMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.4, wireframe: true });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), ghostMat);
+            body.position.y = 1; ghostGroup.add(body);
+            ghostGroup.visible = false;
+            scene.add(ghostGroup);
         }
 
         function resetCar() { speed = 0; playerYaw = 0; carGroup.position.set(1000, 0, -100); }
@@ -165,7 +149,6 @@
             let nextX = carGroup.position.x + Math.sin(playerYaw) * speed;
             let nextZ = carGroup.position.z + Math.cos(playerYaw) * speed;
             
-            // Wall Collision Logic for Oval
             let distToCenter = Infinity;
             trackPoints.forEach(p => {
                 let d = new THREE.Vector3(nextX, 0, nextZ).distanceTo(p);
@@ -174,22 +157,39 @@
 
             if (distToCenter > 60) { speed *= -0.4; } 
             else { carGroup.position.set(nextX, 0, nextZ); }
-
             carGroup.rotation.y = playerYaw;
 
-            // Lap Trigger (Right Straight)
-            if (carGroup.position.x > 900 && carGroup.position.z > 0 && !lapActive) {
-                lapActive = true; startTime = Date.now();
-            }
-            if (lapActive) {
-                let ms = Date.now() - startTime;
-                document.getElementById('currTime').innerText = formatTime(ms);
-                if (carGroup.position.x < -900) checkpointReached = true;
-                if (carGroup.position.x > 900 && carGroup.position.z < -100 && checkpointReached) {
-                    if (ms < bestTime) { bestTime = ms; document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms); }
-                    checkpointReached = false; startTime = Date.now();
+            // Handle Ghost
+            if (lapActive && bestLapData.length > 0) {
+                ghostGroup.visible = true;
+                if (ghostFrame < bestLapData.length) {
+                    ghostGroup.position.set(bestLapData[ghostFrame].x, 0, bestLapData[ghostFrame].z);
+                    ghostGroup.rotation.y = bestLapData[ghostFrame].yaw;
+                    ghostFrame++;
                 }
             }
+
+            // Lap Trigger
+            if (carGroup.position.x > 900 && carGroup.position.z > 0 && !lapActive) {
+                lapActive = true; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
+            }
+
+            if (lapActive) {
+                currentLapData.push({x: carGroup.position.x, z: carGroup.position.z, yaw: carGroup.rotation.y});
+                let ms = Date.now() - startTime;
+                document.getElementById('currTime').innerText = formatTime(ms);
+                
+                if (carGroup.position.x < -900) checkpointReached = true;
+                if (carGroup.position.x > 900 && carGroup.position.z < -100 && checkpointReached) {
+                    if (ms < bestTime) { 
+                        bestTime = ms; 
+                        bestLapData = [...currentLapData];
+                        document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms); 
+                    }
+                    checkpointReached = false; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
+                }
+            }
+
             camera.position.set(carGroup.position.x - Math.sin(playerYaw)*55, 30, carGroup.position.z - Math.cos(playerYaw)*55);
             camera.lookAt(carGroup.position);
             renderer.render(scene, camera);
@@ -200,7 +200,4 @@
             return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}.${c.toString().padStart(2,'0')}`;
         }
         function addComment() { const i = document.getElementById('comInput'); if(i.value) { document.getElementById('commentList').innerHTML += `<div><b>Racer:</b> ${i.value}</div>`; i.value = ""; } }
-        function playLink() { const u = document.getElementById('musicLink').value; let id = u.includes("v=") ? u.split("v=")[1].split("&")[0] : u.split("youtu.be/")[1]; if(id) { document.getElementById('playerFrame').style.display = "block"; document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1`; } }
-    </script>
-</body>
-</html>
+        function playLink() { const u = document.getElementById('musicLink').value; let id = u.includes
