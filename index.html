@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>The Racers - V108 GHOST MODE</title>
+    <title>The Racers - V109 FIXED OVAL</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
         #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; z-index: 10; }
@@ -19,7 +19,7 @@
 
     <div id="overlay">
         <h1 style="color:#ffffff; letter-spacing:12px; text-shadow: 0 0 20px #00ffff;">THE RACERS</h1>
-        <p style="color:#00ffff;">V108: GHOST RECORDING ACTIVE</p>
+        <p style="color:#00ffff;">V109: INVISIBLE WALLS REMOVED</p>
         <button class="btn" style="font-size:18px; padding:12px 40px; background:#fff; margin-top:20px;" onclick="start()">IGNITION</button>
     </div>
 
@@ -32,14 +32,14 @@
 
     <div id="ui">
         <b>WASD</b>: Drive | <b>SHIFT</b>: Nitro<br>
-        <b>R</b>: Reset | <small style="color: #00ffff;">Race your Best Lap!</small>
+        <b>R</b>: Reset | <small style="color: #00ffff;">Fixed Start Line Snagging</small>
     </div>
 
     <div id="tipJar" onclick="window.open('https://www.sanangelogives.org/organization/emmanuelschooloffinearts')">🥁 TIP ESOFA</div>
 
     <div id="commentBox">
         <b>💬 CHAT</b>
-        <div id="commentList">Ghost car enabled. Beat 20s!</div>
+        <div id="commentList">Invisible wall patch applied.</div>
         <div style="display:flex; gap:3px;">
             <input type="text" id="comInput" style="background:#000; color:#fff; border:1px solid #333; flex-grow:1;" placeholder="Talk...">
             <button class="btn" onclick="addComment()">></button>
@@ -74,28 +74,34 @@
 
             scene.add(new THREE.GridHelper(10000, 100, 0x00ffff, 0x050505));
 
-            const straightLen = 800; const radius = 1000;
-            for(let i=0; i<10; i++) trackPoints.push(new THREE.Vector3(radius, 0, (i/10)*straightLen - straightLen/2));
-            for(let i=0; i<=20; i++) { let a = (i/20) * Math.PI; trackPoints.push(new THREE.Vector3(Math.cos(a)*radius, 0, straightLen/2 + Math.sin(a)*radius)); }
-            for(let i=0; i<10; i++) trackPoints.push(new THREE.Vector3(-radius, 0, straightLen/2 - (i/10)*straightLen));
-            for(let i=0; i<=20; i++) { let a = Math.PI + (i/20) * Math.PI; trackPoints.push(new THREE.Vector3(Math.cos(a)*radius, 0, -straightLen/2 + Math.sin(a)*radius)); }
-
+            const sLen = 800; const rad = 1000;
+            // Build visual walls
             wallGroup = new THREE.Group();
             const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-            for (let i = 0; i < trackPoints.length; i++) {
-                let p1 = trackPoints[i], p2 = trackPoints[(i+1)%trackPoints.length];
+            
+            // Wall Geometry logic for the Oval
+            const createWallLine = (p1, p2, offset) => {
                 let dir = new THREE.Vector3().subVectors(p2, p1).normalize();
-                let sideL = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(65);
-                let sideR = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(-65);
-                let wL = new THREE.Mesh(new THREE.BoxGeometry(2, 20, p1.distanceTo(p2)+2), wallMat);
-                wL.position.set((p1.x+p2.x)/2 + sideL.x, 10, (p1.z+p2.z)/2 + sideL.z);
-                wL.lookAt(p2.x + sideL.x, 10, p2.z + sideL.z); wallGroup.add(wL);
-                let wR = new THREE.Mesh(new THREE.BoxGeometry(2, 20, p1.distanceTo(p2)+2), wallMat);
-                wR.position.set((p1.x+p2.x)/2 + sideR.x, 10, (p1.z+p2.z)/2 + sideR.z);
-                wR.lookAt(p2.x + sideR.x, 10, p2.z + sideR.z); wallGroup.add(wR);
+                let side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(offset);
+                let w = new THREE.Mesh(new THREE.BoxGeometry(2, 25, p1.distanceTo(p2)+5), wallMat);
+                w.position.set((p1.x+p2.x)/2 + side.x, 12.5, (p1.z+p2.z)/2 + side.z);
+                w.lookAt(p2.x + side.x, 12.5, p2.z + side.z);
+                wallGroup.add(w);
+            }
+
+            // Simple Oval Pathing
+            const path = [];
+            for(let i=0; i<10; i++) path.push(new THREE.Vector3(rad, 0, (i/10)*sLen - sLen/2));
+            for(let i=0; i<=20; i++) { let a = (i/20)*Math.PI; path.push(new THREE.Vector3(Math.cos(a)*rad,0,sLen/2+Math.sin(a)*rad)); }
+            for(let i=0; i<10; i++) path.push(new THREE.Vector3(-rad, 0, sLen/2 - (i/10)*sLen));
+            for(let i=0; i<=20; i++) { let a = Math.PI+(i/20)*Math.PI; path.push(new THREE.Vector3(Math.cos(a)*rad,0,-sLen/2+Math.sin(a)*rad)); }
+
+            for(let i=0; i<path.length; i++) {
+                createWallLine(path[i], path[(i+1)%path.length], 75);
+                createWallLine(path[i], path[(i+1)%path.length], -75);
             }
             scene.add(wallGroup);
-            scene.add(new THREE.AmbientLight(0xffffff, 1.8));
+            scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
             createCar();
             createGhost();
@@ -111,8 +117,7 @@
 
         function createCar() {
             carGroup = new THREE.Group();
-            const chrome = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1, roughness: 0.1 });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), chrome);
+            const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1 }));
             body.position.y = 1; carGroup.add(body);
             carGroup.position.set(1000, 0, -100);
             scene.add(carGroup);
@@ -121,8 +126,7 @@
         function createGhost() {
             ghostGroup = new THREE.Group();
             const ghostMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.4, wireframe: true });
-            const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), ghostMat);
-            body.position.y = 1; ghostGroup.add(body);
+            ghostGroup.add(new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), ghostMat));
             ghostGroup.visible = false;
             scene.add(ghostGroup);
         }
@@ -138,8 +142,7 @@
 
         function animate() {
             requestAnimationFrame(animate);
-            let accel = 0.14 * nitroMult; 
-            if (keys['KeyW']) speed = Math.min(speed + accel, 5.5 * nitroMult);
+            if (keys['KeyW']) speed = Math.min(speed + (0.14 * nitroMult), 5.5 * nitroMult);
             else if (keys['KeyS']) speed = Math.max(speed - 0.2, -2);
             else speed *= 0.985;
 
@@ -149,17 +152,23 @@
             let nextX = carGroup.position.x + Math.sin(playerYaw) * speed;
             let nextZ = carGroup.position.z + Math.cos(playerYaw) * speed;
             
-            let distToCenter = Infinity;
-            trackPoints.forEach(p => {
-                let d = new THREE.Vector3(nextX, 0, nextZ).distanceTo(p);
-                if(d < distToCenter) distToCenter = d;
-            });
+            // New "Sausage" Collision (Calculates distance to two focal points)
+            let zLimit = 400; // half of sLen
+            let checkZ = Math.max(-zLimit, Math.min(zLimit, nextZ));
+            let dx = nextX - (nextX > 0 ? 1000 : -1000);
+            let dz = nextZ - checkZ;
+            let distToCenterLine = Math.sqrt(dx*dx + dz*dz);
 
-            if (distToCenter > 60) { speed *= -0.4; } 
-            else { carGroup.position.set(nextX, 0, nextZ); }
+            if (Math.abs(nextX) > 1075 || Math.abs(nextX) < 925 && distToCenterLine > 70) {
+                 // Simplified Radial collision
+                 let radialDist = Math.sqrt((Math.abs(nextX)-1000)**2 + (Math.max(0, Math.abs(nextZ)-400))**2);
+                 if(radialDist > 70 || radialDist < -70) { speed *= -0.5; }
+                 else { carGroup.position.set(nextX, 0, nextZ); }
+            } else { carGroup.position.set(nextX, 0, nextZ); }
+
             carGroup.rotation.y = playerYaw;
 
-            // Handle Ghost
+            // Ghost Logic
             if (lapActive && bestLapData.length > 0) {
                 ghostGroup.visible = true;
                 if (ghostFrame < bestLapData.length) {
@@ -169,27 +178,20 @@
                 }
             }
 
-            // Lap Trigger
-            if (carGroup.position.x > 900 && carGroup.position.z > 0 && !lapActive) {
+            // Lap Detection
+            if (carGroup.position.x > 900 && carGroup.position.z > 50 && !lapActive) {
                 lapActive = true; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
             }
-
             if (lapActive) {
                 currentLapData.push({x: carGroup.position.x, z: carGroup.position.z, yaw: carGroup.rotation.y});
                 let ms = Date.now() - startTime;
                 document.getElementById('currTime').innerText = formatTime(ms);
-                
                 if (carGroup.position.x < -900) checkpointReached = true;
-                if (carGroup.position.x > 900 && carGroup.position.z < -100 && checkpointReached) {
-                    if (ms < bestTime) { 
-                        bestTime = ms; 
-                        bestLapData = [...currentLapData];
-                        document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms); 
-                    }
+                if (carGroup.position.x > 900 && carGroup.position.z < -50 && checkpointReached) {
+                    if (ms < bestTime) { bestTime = ms; bestLapData = [...currentLapData]; document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms); }
                     checkpointReached = false; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
                 }
             }
-
             camera.position.set(carGroup.position.x - Math.sin(playerYaw)*55, 30, carGroup.position.z - Math.cos(playerYaw)*55);
             camera.lookAt(carGroup.position);
             renderer.render(scene, camera);
