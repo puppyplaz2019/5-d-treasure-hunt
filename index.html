@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>The Racers - V110 Ghost-Buster Oval</title>
+    <title>The Racers - V111 Speed & Spirit</title>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
         #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; z-index: 10; }
         #timerBox { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 10px; border: 2px solid #00ffff; border-radius: 10px; text-align: center; min-width: 160px; box-shadow: 0 0 10px #00ffff; z-index: 10; }
         #nitroBox { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; border: 1px solid #ff0000; font-weight: bold; z-index: 10; }
+        
+        /* New Speedometer Style */
+        #speedoBox { position: absolute; bottom: 150px; left: 20px; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 50%; border: 3px solid #00ffff; width: 80px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 15px #00ffff; z-index: 20; }
+        #speedNum { font-size: 28px; font-weight: bold; color: #00ffff; line-height: 1; }
+        #speedUnit { font-size: 10px; color: #fff; margin-top: 2px; }
+
         #tipJar { position: absolute; bottom: 195px; right: 20px; background: linear-gradient(45deg, #111, #00ffff); padding: 12px; border-radius: 10px; border: 2px solid #fff; color: #fff; font-weight: bold; text-align: center; cursor: pointer; box-shadow: 0 0 15px #00ffff; z-index: 25; }
         #commentBox { position: absolute; bottom: 20px; left: 20px; background: rgba(10,10,10,0.9); padding: 15px; border: 1px solid #555; width: 280px; border-radius: 5px; z-index: 20; }
         #commentList { height: 80px; overflow-y: auto; font-size: 11px; margin-bottom: 5px; border-bottom: 1px solid #333; }
@@ -19,7 +25,7 @@
 
     <div id="overlay">
         <h1 style="color:#ffffff; letter-spacing:12px; text-shadow: 0 0 20px #00ffff;">THE RACERS</h1>
-        <p style="color:#00ffff;">V110: PERFECT OVAL & ZERO SNAGS</p>
+        <p style="color:#00ffff;">V111: SPEEDOMETER & GHOST UPDATES</p>
         <button class="btn" style="font-size:18px; padding:12px 40px; background:#fff; margin-top:20px;" onclick="start()">IGNITION</button>
     </div>
 
@@ -28,18 +34,23 @@
         <div id="bestTime" style="font-size: 11px; color: #32cd32;">BEST: --:--.--</div>
     </div>
 
+    <div id="speedoBox">
+        <div id="speedNum">0</div>
+        <div id="speedUnit">MPH</div>
+    </div>
+
     <div id="nitroBox">NITRO: READY (SHIFT)</div>
 
     <div id="ui">
         <b>WASD</b>: Drive | <b>SHIFT</b>: Nitro<br>
-        <b>R</b>: Reset | <small style="color: #00ffff;">Collision Logic Rebuilt</small>
+        <b>R</b>: Reset | <small style="color: #00ffff;">Watch the Speedo!</small>
     </div>
 
     <div id="tipJar" onclick="window.open('https://www.sanangelogives.org/organization/emmanuelschooloffinearts')">🥁 TIP ESOFA</div>
 
     <div id="commentBox">
         <b>💬 CHAT</b>
-        <div id="commentList">Oval geometry welded. Walls aligned.</div>
+        <div id="commentList">Speedometer installed. Let's fly!</div>
         <div style="display:flex; gap:3px;">
             <input type="text" id="comInput" style="background:#000; color:#fff; border:1px solid #333; flex-grow:1;" placeholder="Talk...">
             <button class="btn" onclick="addComment()">></button>
@@ -75,7 +86,6 @@
 
             scene.add(new THREE.GridHelper(10000, 100, 0x00ffff, 0x050505));
 
-            // Generate Path Points for a Perfect Oval
             const sLen = 800; const rad = 1000;
             // Straight 1
             for(let i=0; i<20; i++) trackMidpoints.push(new THREE.Vector3(rad, 0, (i/20)*sLen - sLen/2));
@@ -86,17 +96,13 @@
             // Turn 2
             for(let i=0; i<=40; i++) { let a = Math.PI + (i/40)*Math.PI; trackMidpoints.push(new THREE.Vector3(Math.cos(a)*rad, 0, -sLen/2 + Math.sin(a)*rad)); }
 
-            // Build Walls based on the path
             wallGroup = new THREE.Group();
             const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
             
             for(let i=0; i < trackMidpoints.length; i++){
-                let p1 = trackMidpoints[i];
-                let p2 = trackMidpoints[(i+1)%trackMidpoints.length];
+                let p1 = trackMidpoints[i], p2 = trackMidpoints[(i+1)%trackMidpoints.length];
                 let dir = new THREE.Vector3().subVectors(p2, p1).normalize();
                 let sideVec = new THREE.Vector3(-dir.z, 0, dir.x);
-
-                // Create Inner and Outer Wall Segments
                 [75, -75].forEach(offset => {
                     let w = new THREE.Mesh(new THREE.BoxGeometry(2, 30, p1.distanceTo(p2) + 1), wallMat);
                     let side = sideVec.clone().multiplyScalar(offset);
@@ -107,7 +113,6 @@
             }
             scene.add(wallGroup);
             scene.add(new THREE.AmbientLight(0xffffff, 2.0));
-
             createCar();
             createGhost();
 
@@ -141,7 +146,14 @@
         function activateNitro() {
             nitroCooldown = true; nitroMult = 5;
             document.getElementById('nitroBox').innerText = "NITRO: ACTIVE!!";
-            setTimeout(() => { nitroMult = 1; document.getElementById('nitroBox').innerText = "NITRO: COOLING..."; }, 1000);
+            document.getElementById('speedNum').style.color = "#ff0000";
+            document.getElementById('speedoBox').style.borderColor = "#ff0000";
+            setTimeout(() => { 
+                nitroMult = 1; 
+                document.getElementById('nitroBox').innerText = "NITRO: COOLING...";
+                document.getElementById('speedNum').style.color = "#00ffff";
+                document.getElementById('speedoBox').style.borderColor = "#00ffff";
+            }, 1000);
             setTimeout(() => { nitroCooldown = false; document.getElementById('nitroBox').innerText = "NITRO: READY (SHIFT)"; }, 6000);
         }
 
@@ -154,32 +166,26 @@
             if (keys['KeyA']) playerYaw += 0.045;
             if (keys['KeyD']) playerYaw -= 0.045;
 
+            // Speedometer update logic
+            let displaySpeed = Math.abs(Math.floor(speed * 40));
+            document.getElementById('speedNum').innerText = displaySpeed;
+
             let nextX = carGroup.position.x + Math.sin(playerYaw) * speed;
             let nextZ = carGroup.position.z + Math.cos(playerYaw) * speed;
             
-            // Rock-Solid Segment Collision
             let onTrack = false;
             for(let i=0; i < trackMidpoints.length; i++){
-                let p1 = trackMidpoints[i];
-                let p2 = trackMidpoints[(i+1)%trackMidpoints.length];
-                
-                // Find distance to the line segment p1-p2
+                let p1 = trackMidpoints[i], p2 = trackMidpoints[(i+1)%trackMidpoints.length];
                 let l2 = p1.distanceToSquared(p2);
-                let t = ((nextX - p1.x) * (p2.x - p1.x) + (nextZ - p1.z) * (p2.z - p1.z)) / l2;
-                t = Math.max(0, Math.min(1, t));
-                let projectionX = p1.x + t * (p2.x - p1.x);
-                let projectionZ = p1.z + t * (p2.z - p1.z);
-                let dist = Math.sqrt((nextX - projectionX)**2 + (nextZ - projectionZ)**2);
-                
+                let t = Math.max(0, Math.min(1, ((nextX - p1.x) * (p2.x - p1.x) + (nextZ - p1.z) * (p2.z - p1.z)) / l2));
+                let dist = Math.sqrt((nextX - (p1.x + t * (p2.x - p1.x)))**2 + (nextZ - (p1.z + t * (p2.z - p1.z)))**2);
                 if(dist < 72) { onTrack = true; break; }
             }
 
             if (!onTrack) { speed *= -0.6; } 
             else { carGroup.position.set(nextX, 0, nextZ); }
-
             carGroup.rotation.y = playerYaw;
 
-            // Ghost Logic
             if (lapActive && bestLapData.length > 0) {
                 ghostGroup.visible = true;
                 if (ghostFrame < bestLapData.length) {
@@ -189,7 +195,6 @@
                 }
             }
 
-            // Lap Detection
             if (carGroup.position.x > 800 && carGroup.position.z > 100 && !lapActive) {
                 lapActive = true; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
             }
