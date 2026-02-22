@@ -1,123 +1,227 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ESOFA High-Speed Racers</title>
+    <title>The Racers - V112 Friction & Drag</title>
     <style>
-        body { margin: 0; background: #222; color: white; font-family: 'Arial', sans-serif; overflow: hidden; text-align: center; }
-        canvas { background: #333; border: 5px solid #555; display: block; margin: 0 auto; }
+        body { margin: 0; overflow: hidden; background: #050508; font-family: 'Courier New', monospace; color: #fff; }
+        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 8px; border: 1px solid #00ffff; pointer-events: none; z-index: 10; }
+        #timerBox { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 10px; border: 2px solid #00ffff; border-radius: 10px; text-align: center; min-width: 160px; box-shadow: 0 0 10px #00ffff; z-index: 10; }
+        #nitroBox { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; border: 1px solid #ff0000; font-weight: bold; z-index: 10; }
         
-        #game-ui { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                   background: rgba(0,0,0,0.9); padding: 30px; border-radius: 15px; border: 3px solid #00ffcc; display: none; width: 320px; }
-        
-        .btn { display: block; padding: 15px; margin: 10px 0; text-decoration: none; font-weight: bold; border-radius: 8px; cursor: pointer; border: none; font-size: 14px; color: white; transition: 0.2s; }
-        .btn:hover { transform: scale(1.05); }
-        
-        .retry-btn { background: #00ffcc; color: black; }
-        .esofa-btn { background: #d4af37; color: black; }
-        /* NEW SANCO BUTTON STYLE */
-        .sanco-btn { background: #ff0000; color: white; border: 2px solid white; }
-        
-        #score-display { position: absolute; top: 10px; width: 100%; font-size: 24px; font-weight: bold; pointer-events: none; }
+        #speedoBox { position: absolute; bottom: 150px; left: 20px; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 50%; border: 3px solid #00ffff; width: 80px; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 15px #00ffff; z-index: 20; }
+        #speedNum { font-size: 28px; font-weight: bold; color: #00ffff; line-height: 1; }
+        #speedUnit { font-size: 10px; color: #fff; margin-top: 2px; }
+
+        /* Support Buttons Container */
+        #supportPanel { position: absolute; bottom: 195px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 25; }
+        #tipJar { background: linear-gradient(45deg, #111, #00ffff); padding: 12px; border-radius: 10px; border: 2px solid #fff; color: #fff; font-weight: bold; text-align: center; cursor: pointer; box-shadow: 0 0 15px #00ffff; width: 140px; }
+        #sancoBtn { background: #ff0000; padding: 12px; border-radius: 10px; border: 2px solid #fff; color: #fff; font-weight: bold; text-align: center; cursor: pointer; box-shadow: 0 0 15px #ff0000; text-decoration: none; width: 140px; font-size: 12px; display: block; }
+
+        #commentBox { position: absolute; bottom: 20px; left: 20px; background: rgba(10,10,10,0.9); padding: 15px; border: 1px solid #555; width: 280px; border-radius: 5px; z-index: 20; }
+        #commentList { height: 80px; overflow-y: auto; font-size: 11px; margin-bottom: 5px; border-bottom: 1px solid #333; }
+        #djDeck { position: absolute; bottom: 20px; right: 20px; background: #111; padding: 15px; border: 2px solid #a020f0; width: 260px; z-index: 20; }
+        .btn { cursor: pointer; background: #32cd32; color: #000; border: none; padding: 5px 10px; font-weight: bold; }
+        #overlay { position: absolute; width: 100%; height: 100%; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
     </style>
 </head>
 <body>
 
-<div id="score-display">DISTANCE: <span id="dist">0</span>m</div>
+    <div id="overlay">
+        <h1 style="color:#ffffff; letter-spacing:12px; text-shadow: 0 0 20px #00ffff;">THE RACERS</h1>
+        <p style="color:#00ffff;">V112: FRICTION WALLS & MEGA STRAIGHTS</p>
+        <button class="btn" style="font-size:18px; padding:12px 40px; background:#fff; margin-top:20px;" onclick="start()">IGNITION</button>
+    </div>
 
-<div id="game-ui">
-    <h1 style="color:#00ffcc; margin-top:0;">CRASHED!</h1>
-    <p>Distance Reached: <span id="final-dist">0</span>m</p>
+    <div id="timerBox">
+        <div id="currTime" style="font-size: 22px; font-weight: bold;">00:00.00</div>
+        <div id="bestTime" style="font-size: 11px; color: #32cd32;">BEST: --:--.--</div>
+    </div>
+
+    <div id="speedoBox">
+        <div id="speedNum">0</div>
+        <div id="speedUnit">MPH</div>
+    </div>
+
+    <div id="nitroBox">NITRO: READY (SHIFT)</div>
+
+    <div id="ui">
+        <b>WASD</b>: Drive | <b>SHIFT</b>: Nitro<br>
+        <b>R</b>: Reset | <small style="color: #00ffff;">Scrape the walls to slow down!</small>
+    </div>
+
+    <div id="supportPanel">
+        <div id="tipJar" onclick="window.open('https://www.sanangelogives.org/organization/emmanuelschooloffinearts')">🥁 TIP ESOFA</div>
+        <a id="sancoBtn" href="https://www.youtube.com/@SancoOutdoors" target="_blank">🎬 SUB TO SANCO</a>
+    </div>
+
+    <div id="commentBox">
+        <b>💬 CHAT</b>
+        <div id="commentList">Sliding physics enabled. Long straights active.</div>
+        <div style="display:flex; gap:3px;">
+            <input type="text" id="comInput" style="background:#000; color:#fff; border:1px solid #333; flex-grow:1;" placeholder="Talk...">
+            <button class="btn" onclick="addComment()">></button>
+        </div>
+    </div>
+
+    <div id="djDeck">
+        <b>🎵 DJ DECK</b><br>
+        <iframe id="playerFrame" style="display:none; width:100%; height:60px; margin-top:5px;" allow="autoplay"></iframe>
+        <input type="text" id="musicLink" style="width:70%; background:#000; color:#fff;" placeholder="YouTube Link">
+        <button class="btn" onclick="playLink()">PLAY</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     
-    <button class="btn retry-btn" onclick="location.reload()">TRY AGAIN</button>
-    <a class="btn esofa-btn" href="https://www.sanangelogives.org/organization/emmanuelschooloffinearts" target="_blank">🎻 TIP ESOFA SCHOOL</a>
-    
-    <a class="btn sanco-btn" href="https://www.youtube.com/@SancoOutdoors" target="_blank">🎬 SUB TO SANCO OUTDOORS</a>
-</div>
+    <script>
+        let scene, camera, renderer, carGroup, ghostGroup, wallGroup;
+        let keys = {}, playerYaw = 0, speed = 0;
+        let startTime = 0, bestTime = Infinity, lapActive = false, checkpointReached = false;
+        let nitroCooldown = false, nitroMult = 1;
+        let currentLapData = [], bestLapData = [], ghostFrame = 0;
+        let trackMidpoints = [];
 
-<canvas id="raceCanvas"></canvas>
+        function start() { document.getElementById('overlay').style.display = 'none'; init(); }
 
-<script>
-    const canvas = document.getElementById('raceCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 400;
-    canvas.height = 600;
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x020205);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 30000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
 
-    let player = { x: 175, y: 500, w: 50, h: 80, speed: 5 };
-    let enemies = [];
-    let distance = 0;
-    let gameOver = false;
-    let keys = {};
+            scene.add(new THREE.GridHelper(20000, 200, 0x00ffff, 0x050505));
 
-    window.addEventListener('keydown', e => keys[e.code] = true);
-    window.addEventListener('keyup', e => keys[e.code] = false);
+            const sLen = 3000; const rad = 1000;
+            for(let i=0; i<40; i++) trackMidpoints.push(new THREE.Vector3(rad, 0, (i/40)*sLen - sLen/2));
+            for(let i=0; i<=40; i++) { let a = (i/40)*Math.PI; trackMidpoints.push(new THREE.Vector3(Math.cos(a)*rad, 0, sLen/2 + Math.sin(a)*rad)); }
+            for(let i=0; i<40; i++) trackMidpoints.push(new THREE.Vector3(-rad, 0, sLen/2 - (i/40)*sLen));
+            for(let i=0; i<=40; i++) { let a = Math.PI + (i/40)*Math.PI; trackMidpoints.push(new THREE.Vector3(Math.cos(a)*rad, 0, -sLen/2 + Math.sin(a)*rad)); }
 
-    function spawnEnemy() {
-        if (gameOver) return;
-        let lane = Math.floor(Math.random() * 3);
-        enemies.push({ x: lane * 133 + 40, y: -100, w: 50, h: 80, speed: 4 + (distance / 500) });
-        setTimeout(spawnEnemy, Math.max(500, 1500 - (distance / 10)));
-    }
-
-    function update() {
-        if (gameOver) return;
-
-        if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
-        if (keys['ArrowRight'] && player.x < canvas.width - player.w) player.x += player.speed;
-
-        distance++;
-        document.getElementById('dist').innerText = Math.floor(distance / 10);
-
-        enemies.forEach((en, index) => {
-            en.y += en.speed;
+            wallGroup = new THREE.Group();
+            const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
             
-            // Collision Logic
-            if (player.x < en.x + en.w && player.x + player.w > en.x &&
-                player.y < en.y + en.h && player.y + player.h > en.y) {
-                endGame();
+            for(let i=0; i < trackMidpoints.length; i++){
+                let p1 = trackMidpoints[i], p2 = trackMidpoints[(i+1)%trackMidpoints.length];
+                let dir = new THREE.Vector3().subVectors(p2, p1).normalize();
+                let sideVec = new THREE.Vector3(-dir.z, 0, dir.x);
+                [75, -75].forEach(offset => {
+                    let w = new THREE.Mesh(new THREE.BoxGeometry(2, 40, p1.distanceTo(p2) + 2), wallMat);
+                    let side = sideVec.clone().multiplyScalar(offset);
+                    w.position.set((p1.x+p2.x)/2 + side.x, 20, (p1.z+p2.z)/2 + side.z);
+                    w.lookAt(p2.x + side.x, 20, p2.z + side.z);
+                    wallGroup.add(w);
+                });
+            }
+            scene.add(wallGroup);
+            scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+            createCar();
+            createGhost();
+
+            window.addEventListener('keydown', e => {
+                keys[e.code] = true;
+                if(e.code === 'ShiftLeft' && !nitroCooldown) activateNitro();
+                if(e.code === 'KeyR') resetCar();
+            });
+            window.addEventListener('keyup', e => delete keys[e.code]);
+            animate();
+        }
+
+        function createCar() {
+            carGroup = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1 }));
+            body.position.y = 1; carGroup.add(body);
+            carGroup.position.set(1000, 0, -1400);
+            scene.add(carGroup);
+        }
+
+        function createGhost() {
+            ghostGroup = new THREE.Group();
+            const ghostMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.3, wireframe: true });
+            ghostGroup.add(new THREE.Mesh(new THREE.BoxGeometry(5, 1.2, 10), ghostMat));
+            ghostGroup.visible = false;
+            scene.add(ghostGroup);
+        }
+
+        function resetCar() { speed = 0; playerYaw = 0; carGroup.position.set(1000, 0, -1400); carGroup.rotation.y = 0; }
+
+        function activateNitro() {
+            nitroCooldown = true; nitroMult = 5;
+            document.getElementById('nitroBox').innerText = "NITRO: ACTIVE!!";
+            document.getElementById('speedoBox').style.borderColor = "#ff0000";
+            document.getElementById('speedNum').style.color = "#ff0000";
+            setTimeout(() => { 
+                nitroMult = 1; 
+                document.getElementById('nitroBox').innerText = "NITRO: COOLING...";
+                document.getElementById('speedoBox').style.borderColor = "#00ffff";
+                document.getElementById('speedNum').style.color = "#00ffff";
+            }, 1000);
+            setTimeout(() => { nitroCooldown = false; document.getElementById('nitroBox').innerText = "NITRO: READY (SHIFT)"; }, 6000);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (keys['KeyW']) speed = Math.min(speed + (0.15 * nitroMult), 5.6 * nitroMult);
+            else if (keys['KeyS']) speed = Math.max(speed - 0.2, -2);
+            else speed *= 0.985;
+
+            if (keys['KeyA']) playerYaw += 0.045;
+            if (keys['KeyD']) playerYaw -= 0.045;
+
+            document.getElementById('speedNum').innerText = Math.abs(Math.floor(speed * 40));
+
+            let nextX = carGroup.position.x + Math.sin(playerYaw) * speed;
+            let nextZ = carGroup.position.z + Math.cos(playerYaw) * speed;
+            
+            let onTrack = false;
+            for(let i=0; i < trackMidpoints.length; i++){
+                let p1 = trackMidpoints[i], p2 = trackMidpoints[(i+1)%trackMidpoints.length];
+                let l2 = p1.distanceToSquared(p2);
+                let t = Math.max(0, Math.min(1, ((nextX - p1.x) * (p2.x - p1.x) + (nextZ - p1.z) * (p2.z - p1.z)) / l2));
+                let projX = p1.x + t * (p2.x - p1.x);
+                let projZ = p1.z + t * (p2.z - p1.z);
+                let dist = Math.sqrt((nextX - projX)**2 + (nextZ - projZ)**2);
+                if(dist < 72) { onTrack = true; break; }
             }
 
-            if (en.y > canvas.height) enemies.splice(index, 1);
-        });
+            if (!onTrack) { speed = Math.max(0, speed - 0.625); } 
+            else { carGroup.position.set(nextX, 0, nextZ); }
+            
+            carGroup.rotation.y = playerYaw;
 
-        draw();
-        requestAnimationFrame(update);
-    }
+            if (lapActive && bestLapData.length > 0) {
+                ghostGroup.visible = true;
+                if (ghostFrame < bestLapData.length) {
+                    ghostGroup.position.set(bestLapData[ghostFrame].x, 0, bestLapData[ghostFrame].z);
+                    ghostGroup.rotation.y = bestLapData[ghostFrame].yaw;
+                    ghostFrame++;
+                }
+            }
 
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (carGroup.position.x > 800 && carGroup.position.z > 500 && !lapActive) {
+                lapActive = true; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
+            }
+            if (lapActive) {
+                currentLapData.push({x: carGroup.position.x, z: carGroup.position.z, yaw: carGroup.rotation.y});
+                let ms = Date.now() - startTime;
+                document.getElementById('currTime').innerText = formatTime(ms);
+                if (carGroup.position.x < -800) checkpointReached = true;
+                if (carGroup.position.x > 800 && carGroup.position.z < -500 && checkpointReached) {
+                    if (ms < bestTime) { bestTime = ms; bestLapData = [...currentLapData]; document.getElementById('bestTime').innerText = "BEST: " + formatTime(ms); }
+                    checkpointReached = false; startTime = Date.now(); currentLapData = []; ghostFrame = 0;
+                }
+            }
+            camera.position.set(carGroup.position.x - Math.sin(playerYaw)*55, 30, carGroup.position.z - Math.cos(playerYaw)*55);
+            camera.lookAt(carGroup.position);
+            renderer.render(scene, camera);
+        }
 
-        // Road Lines
-        ctx.strokeStyle = "white";
-        ctx.setLineDash([20, 20]);
-        ctx.beginPath();
-        ctx.moveTo(133, 0); ctx.lineTo(133, canvas.height);
-        ctx.moveTo(266, 0); ctx.lineTo(266, canvas.height);
-        ctx.stroke();
-
-        // Player Car
-        ctx.fillStyle = "#00ffcc";
-        ctx.fillRect(player.x, player.y, player.w, player.h);
-        ctx.fillStyle = "black"; // Windshield
-        ctx.fillRect(player.x + 5, player.y + 10, player.w - 10, 20);
-
-        // Enemies
-        ctx.fillStyle = "#ff4444";
-        enemies.forEach(en => {
-            ctx.fillRect(en.x, en.y, en.w, en.h);
-            ctx.fillStyle = "black";
-            ctx.fillRect(en.x + 5, en.y + 50, en.w - 10, 20);
-            ctx.fillStyle = "#ff4444";
-        });
-    }
-
-    function endGame() {
-        gameOver = true;
-        document.getElementById('final-dist').innerText = Math.floor(distance / 10);
-        document.getElementById('game-ui').style.display = 'block';
-    }
-
-    spawnEnemy();
-    update();
-</script>
+        function formatTime(ms) {
+            let s = Math.floor(ms/1000), c = Math.floor((ms%1000)/10);
+            return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}.${c.toString().padStart(2,'0')}`;
+        }
+        function addComment() { const i = document.getElementById('comInput'); if(i.value) { document.getElementById('commentList').innerHTML += `<div><b>Racer:</b> ${i.value}</div>`; i.value = ""; } }
+        function playLink() { const u = document.getElementById('musicLink').value; let id = u.includes("v=") ? u.split("v=")[1].split("&")[0] : u.split("youtu.be/")[1]; if(id) { document.getElementById('playerFrame').style.display = "block"; document.getElementById('playerFrame').src = `https://www.youtube.com/embed/${id}?autoplay=1`; } }
+    </script>
 </body>
 </html>
