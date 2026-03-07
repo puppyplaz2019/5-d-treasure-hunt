@@ -3,201 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Treasure Hunter</title>
+    <title>AR Treasure Hunter - FIXED</title>
     <style>
         :root { --accent: #d4af37; --bg: #000; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: 'Courier New', monospace; overflow: hidden; touch-action: none; text-align: center; }
         
-        /* Camera Background */
         #camera-feed { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -1; }
         
-        /* UI Overlay */
-        header { position: absolute; top: 0; left: 0; width: 100%; padding: 15px 0; background: rgba(0, 0, 0, 0.6); border-bottom: 2px solid var(--accent); z-index: 10; }
-        h1 { margin: 0; font-size: 20px; color: var(--accent); text-transform: uppercase; }
+        header { position: absolute; top: 0; left: 0; width: 100%; padding: 15px 0; background: rgba(0, 0, 0, 0.7); border-bottom: 2px solid var(--accent); z-index: 10; }
+        .stats { font-weight: bold; font-size: 18px; margin-top: 5px; color: #00ffff; }
+
+        #overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(10, 10, 12, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 20; padding: 20px; box-sizing: border-box; }
         
-        .stats { font-weight: bold; font-size: 18px; margin-top: 5px; }
-        .stats span { color: #00ffff; }
+        .btn { padding: 20px 40px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: bold; font-family: 'Courier New'; font-size: 20px; cursor: pointer; margin: 10px; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
 
-        /* The Start Screen */
-        #start-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(10, 10, 12, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 20; }
-        .btn { padding: 15px 30px; background: var(--accent); color: #000; border: none; border-radius: 5px; font-weight: bold; font-family: 'Courier New'; font-size: 18px; cursor: pointer; transition: 0.2s; box-shadow: 0 0 15px var(--accent); }
-        .btn:active { transform: scale(0.95); }
-        .instructions { max-width: 80%; margin: 20px 0; color: #ccc; line-height: 1.5; }
-
-        /* Crosshair */
-        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 50%; z-index: 5; pointer-events: none; }
-        #crosshair::after { content: ''; position: absolute; top: 9px; left: -5px; width: 30px; height: 2px; background: rgba(255, 255, 255, 0.5); }
-        #crosshair::before { content: ''; position: absolute; left: 9px; top: -5px; height: 30px; width: 2px; background: rgba(255, 255, 255, 0.5); }
-
-        /* AR Treasure Boxes */
         #ar-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; pointer-events: none; }
-        .treasure { position: absolute; width: 60px; height: 60px; background: linear-gradient(45deg, #ffaa00, #ffdd00); border: 3px solid #fff; border-radius: 8px; box-shadow: 0 0 20px #ffaa00; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #000; font-size: 24px; pointer-events: auto; cursor: pointer; transform: translate(-50%, -50%); transition: transform 0.1s linear; }
-        .treasure::after { content: '?'; }
-        
-        /* Collection Animation */
-        @keyframes collect { 0% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 100% { transform: translate(-50%, -150%) scale(1.5); opacity: 0; } }
-        .collecting { animation: collect 0.5s forwards; pointer-events: none; }
+        .treasure { position: absolute; width: 70px; height: 70px; background: gold; border: 4px solid #fff; border-radius: 12px; box-shadow: 0 0 30px gold; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #000; font-size: 30px; pointer-events: auto; transform: translate(-50%, -50%); transition: transform 0.05s linear; }
+        .treasure::after { content: '💰'; }
 
-        #debug { position: absolute; bottom: 10px; left: 10px; color: #fff; font-size: 10px; z-index: 10; opacity: 0.5; }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; border: 2px solid white; border-radius: 50%; z-index: 5; opacity: 0.5; pointer-events: none; }
+
+        /* Test Button - visible during gameplay */
+        #test-spawn { position: absolute; bottom: 30px; right: 20px; padding: 10px; background: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 5px; z-index: 15; font-size: 12px; }
+        #debug { position: absolute; bottom: 30px; left: 20px; color: #0f0; font-size: 12px; z-index: 15; text-align: left; background: rgba(0,0,0,0.5); padding: 5px; }
     </style>
 </head>
 <body>
 
 <video id="camera-feed" autoplay playsinline></video>
 
-<div id="start-screen">
-    <h1 style="font-size: 28px; margin-bottom: 10px;">AR TREASURE HUNTER</h1>
-    <div class="instructions">
-        1. Allow Camera Access.<br>
-        2. Allow Motion/Orientation Access.<br>
-        3. Stand up and spin your phone around to find floating treasure boxes!<br>
-        4. Tap the boxes to collect them.
-    </div>
-    <button class="btn" onclick="startAR()">ACTIVATE SCANNER</button>
+<div id="overlay">
+    <h1 style="color:var(--accent)">SENSORS REQUIRED</h1>
+    <p style="color:#ccc; font-size: 14px;">This game uses your phone's gyroscope to place treasure in the room.</p>
+    <button class="btn" id="start-btn">UNLOCK SENSORS & CAMERA</button>
 </div>
 
 <header>
-    <h1>Treasure Hunter</h1>
-    <div class="stats">TREASURE FOUND: <span id="score-display">0</span></div>
+    <div>TREASURE HUNTER</div>
+    <div class="stats">FOUND: <span id="score-display">0</span></div>
 </header>
 
 <div id="crosshair"></div>
 <div id="ar-container"></div>
-<div id="debug">Waiting for sensors...</div>
+<button id="test-spawn" onclick="spawnTreasure(true)">SPAWN BOX AT CROSSHAIR</button>
+<div id="debug">Sensors: OFF</div>
 
 <script>
     let score = 0;
     let treasures = [];
+    let currentAlpha = 0; // Compass
+    let currentBeta = 0;  // Tilt
     let isRunning = false;
-    
-    // Store current phone angles
-    let currentAlpha = 0; // Compass direction (0-360)
-    let currentBeta = 0;  // Up/Down tilt (-180 to 180)
 
-    function startAR() {
-        // 1. Request Camera Access
-        const constraints = { video: { facingMode: "environment" } };
-        navigator.mediaDevices.getUserMedia(constraints)
-            .then(function(stream) {
-                document.getElementById('camera-feed').srcObject = stream;
-                requestOrientation();
-            })
-            .catch(function(err) {
-                alert("Camera error: " + err.message + ". Are you on HTTPS?");
-            });
-    }
+    const startBtn = document.getElementById('start-btn');
 
-    function requestOrientation() {
-        // 2. Request Gyroscope/Orientation Access (Crucial for iOS 13+)
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        activateSensors();
-                    } else {
-                        alert("Motion permission denied. The game cannot work without it.");
-                    }
-                })
-                .catch(console.error);
-        } else {
-            // Android and older devices
-            activateSensors();
+    startBtn.addEventListener('click', async () => {
+        // Step 1: Request Camera
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            document.getElementById('camera-feed').srcObject = stream;
+        } catch (err) {
+            alert("Camera denied. AR will not work.");
         }
-    }
 
-    function activateSensors() {
-        document.getElementById('start-screen').style.display = 'none';
-        window.addEventListener('deviceorientation', handleOrientation);
+        // Step 2: Request Motion (iOS specific)
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                const response = await DeviceOrientationEvent.requestPermission();
+                if (response === 'granted') {
+                    initGame();
+                } else {
+                    alert("Motion permission denied.");
+                }
+            } catch (err) {
+                alert("Motion error: " + err);
+            }
+        } else {
+            // Android or Desktop
+            initGame();
+        }
+    });
+
+    function initGame() {
+        document.getElementById('overlay').style.display = 'none';
+        window.addEventListener('deviceorientation', (e) => {
+            // Normalize compass heading
+            currentAlpha = e.webkitCompassHeading || (360 - e.alpha) || 0;
+            currentBeta = e.beta || 0;
+            document.getElementById('debug').innerHTML = `ALPHA: ${Math.floor(currentAlpha)}<br>BETA: ${Math.floor(currentBeta)}`;
+        });
+        
         isRunning = true;
+        // Spawn 3 random ones and 1 right in front
+        spawnTreasure(true); 
+        for(let i=0; i<3; i++) spawnTreasure(false);
         
-        // Spawn initial boxes
-        for(let i=0; i<5; i++) spawnTreasure();
-        
-        // Start the rendering loop
-        requestAnimationFrame(updateARLoop);
+        requestAnimationFrame(updateLoop);
     }
 
-    function handleOrientation(event) {
-        // If absolute isn't available, fallback to relative movement
-        currentAlpha = event.webkitCompassHeading || Math.abs(event.alpha - 360) || 0; 
-        currentBeta = event.beta || 0;
-        
-        document.getElementById('debug').innerText = `A: ${Math.floor(currentAlpha)}° | B: ${Math.floor(currentBeta)}°`;
-    }
+    function spawnTreasure(rightInFront = false) {
+        let tAlpha, tBeta;
 
-    function spawnTreasure() {
-        // Create a random target angle for the treasure in 360 degrees
-        let targetAlpha = Math.floor(Math.random() * 360);
-        // Keep it relatively eye-level (between pointing slightly up and slightly down)
-        let targetBeta = Math.floor(Math.random() * 60) + 30; // Phone held upright is usually around 90 Beta
+        if (rightInFront) {
+            // Place it exactly where the phone is currently pointing
+            tAlpha = currentAlpha;
+            tBeta = currentBeta;
+        } else {
+            tAlpha = Math.floor(Math.random() * 360);
+            tBeta = Math.floor(Math.random() * 40) + 60; // Keep it near eye-level
+        }
 
-        let box = document.createElement('div');
+        const box = document.createElement('div');
         box.className = 'treasure';
-        
-        // Attach the target coordinates to the HTML element
-        box.dataset.alpha = targetAlpha;
-        box.dataset.beta = targetBeta;
+        box.dataset.alpha = tAlpha;
+        box.dataset.beta = tBeta;
 
-        // Add tap to collect
         box.onclick = function() {
-            if (this.classList.contains('collecting')) return;
-            this.classList.add('collecting');
-            score += 1;
+            score++;
             document.getElementById('score-display').innerText = score;
-            if (navigator.vibrate) navigator.vibrate(100);
-            
-            // Remove box and spawn a new one after animation
-            setTimeout(() => {
-                this.remove();
-                treasures = treasures.filter(t => t !== this);
-                spawnTreasure();
-            }, 500);
+            this.remove();
+            treasures = treasures.filter(t => t !== box);
+            setTimeout(() => spawnTreasure(false), 1000); // Replacement
         };
 
         document.getElementById('ar-container').appendChild(box);
         treasures.push(box);
     }
 
-    // Calculates the shortest distance between two angles (to handle the 359 to 0 degree wrap-around)
-    function getAngleDifference(target, current) {
+    function getAngleDiff(target, current) {
         let diff = target - current;
-        diff += (diff > 180) ? -360 : (diff < -180) ? 360 : 0;
+        while (diff < -180) diff += 360;
+        while (diff > 180) diff -= 360;
         return diff;
     }
 
-    function updateARLoop() {
+    function updateLoop() {
         if (!isRunning) return;
 
-        const screenWidth = window.innerWidth;
-        const screenHeight = window.innerHeight;
-        
-        // This acts as our camera "Field of View". Higher number = boxes move faster across screen
-        const pixelsPerDegree = screenWidth / 60; 
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+        const fov = sw / 60; // Field of View scaling
 
         treasures.forEach(box => {
-            let tAlpha = parseFloat(box.dataset.alpha);
-            let tBeta = parseFloat(box.dataset.beta);
+            const tA = parseFloat(box.dataset.alpha);
+            const tB = parseFloat(box.dataset.beta);
 
-            // Calculate difference between where the phone is pointing and where the box is
-            let diffX = getAngleDifference(tAlpha, currentAlpha);
-            let diffY = getAngleDifference(tBeta, currentBeta);
+            const dx = getAngleDiff(tA, currentAlpha);
+            const dy = tB - currentBeta;
 
-            // Translate angle differences into screen X and Y coordinates
-            let screenX = (screenWidth / 2) + (diffX * pixelsPerDegree);
-            let screenY = (screenHeight / 2) + (diffY * pixelsPerDegree);
+            const x = (sw / 2) + (dx * fov);
+            const y = (sh / 2) - (dy * fov);
 
-            box.style.left = `${screenX}px`;
-            box.style.top = `${screenY}px`;
-            
-            // Optional: Hide them if they are too far off screen so we don't render them unnecessarily
-            if (Math.abs(diffX) > 90) {
-                box.style.opacity = '0';
+            box.style.left = `${x}px`;
+            box.style.top = `${y}px`;
+
+            // If it's behind the player, hide it
+            if (Math.abs(dx) > 60) {
+                box.style.display = 'none';
             } else {
-                box.style.opacity = '1';
+                box.style.display = 'flex';
             }
         });
 
-        requestAnimationFrame(updateARLoop);
+        requestAnimationFrame(updateLoop);
     }
 </script>
 </body>
