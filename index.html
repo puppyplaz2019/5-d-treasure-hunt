@@ -3,173 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Treasure Hunter - THE FIX</title>
+    <title>SENSOR DIAGNOSTIC</title>
     <style>
-        :root { --accent: #d4af37; --bg: #000; }
-        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
-        
-        #camera-feed { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -1; }
-        
-        /* The "Gatekeeper" UI */
-        #gatekeeper { position: fixed; inset: 0; background: #111; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
-        .permission-btn { width: 80%; padding: 20px; margin: 10px; border: none; border-radius: 10px; font-weight: bold; font-size: 18px; cursor: pointer; }
-        #btn-cam { background: #3498db; color: white; }
-        #btn-sensor { background: #e67e22; color: white; }
-        #btn-start { background: #2ecc71; color: white; display: none; }
-        
-        .status { font-size: 12px; margin-bottom: 20px; color: #888; }
-        .error-log { color: #ff4444; font-family: monospace; font-size: 10px; margin-top: 20px; }
-
-        /* Game Elements */
-        #ar-world { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
-        .treasure { position: absolute; width: 80px; height: 80px; background: gold; border: 5px solid white; border-radius: 15px; display: flex; justify-content: center; align-items: center; font-size: 40px; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 0 20px gold; }
-        .treasure::after { content: '🎁'; }
-        
-        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; pointer-events: none; }
-        #stats { position: absolute; top: 20px; width: 100%; text-align: center; font-weight: bold; z-index: 20; text-shadow: 2px 2px #000; }
+        body { margin: 0; background: #111; color: #0f0; font-family: monospace; text-align: center; padding: 20px; }
+        .box { border: 1px solid #333; padding: 15px; margin: 10px 0; background: #000; }
+        button { width: 100%; padding: 20px; background: #2ecc71; color: #000; font-weight: bold; border: none; border-radius: 10px; font-size: 18px; margin-bottom: 20px; }
+        #data-log { text-align: left; font-size: 14px; color: #0f0; }
+        .fail { color: #ff4444; }
     </style>
 </head>
 <body>
 
-<video id="camera-feed" autoplay playsinline></video>
+    <h2>AR SYSTEM TEST</h2>
 
-<div id="gatekeeper">
-    <h2>AR INITIALIZATION</h2>
-    <p class="status">Browsers require manual approval for each sensor.</p>
-    
-    <button id="btn-cam" class="permission-btn">1. ALLOW CAMERA</button>
-    <button id="btn-sensor" class="permission-btn">2. ALLOW MOTION</button>
-    
-    <button id="btn-start" class="permission-btn">START SCANNER</button>
-    
-    <div id="log" class="error-log"></div>
-</div>
+    <div class="box" id="protocol-check">
+        HTTPS Check: <span id="https-status">Checking...</span>
+    </div>
 
-<div id="stats">FOUND: <span id="score">0</span></div>
-<div id="crosshair"></div>
-<div id="ar-world"></div>
+    <button id="main-btn">1. CLICK TO INITIALIZE SENSORS</button>
+
+    <div class="box">
+        <strong>SENSOR READINGS:</strong>
+        <div id="data-log">
+            COMPASS (Alpha): <span id="val-a">0</span><br>
+            TILT (Beta): <span id="val-b">0</span><br>
+            SIDE (Gamma): <span id="val-g">0</span>
+        </div>
+    </div>
+
+    <div id="instruction" style="font-size: 12px; color: #888;">
+        If you click the button and the numbers above don't change when you move your phone, your phone is blocking the data.
+    </div>
 
 <script>
-    let score = 0;
-    let treasures = [];
-    let alpha = 0, beta = 0;
-    let active = false;
-    const log = document.getElementById('log');
+    const httpsStatus = document.getElementById('https-status');
+    const valA = document.getElementById('val-a');
+    const valB = document.getElementById('val-b');
+    const valG = document.getElementById('val-g');
 
-    // --- STEP 1: CAMERA ---
-    document.getElementById('btn-cam').onclick = async function() {
+    // Check HTTPS immediately
+    if (location.protocol === 'https:') {
+        httpsStatus.innerText = "OK (SECURE)";
+    } else {
+        httpsStatus.innerText = "FAIL (NOT SECURE)";
+        httpsStatus.className = "fail";
+        alert("CRITICAL ERROR: You are not on a secure HTTPS connection. The sensors will NOT work.");
+    }
+
+    document.getElementById('main-btn').onclick = async () => {
+        // Step 1: Request Camera (just to prove JS is working)
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            document.getElementById('camera-feed').srcObject = stream;
-            this.style.background = "#222";
-            this.innerText = "CAMERA: OK";
-            this.disabled = true;
-            checkReady();
-        } catch (e) {
-            log.innerText += "Cam Error: " + e.message + "\n";
+            await navigator.mediaDevices.getUserMedia({ video: true });
+            alert("Camera Access: GRANTED");
+        } catch(e) {
+            alert("Camera Access: DENIED or NOT FOUND");
         }
-    };
 
-    // --- STEP 2: SENSORS ---
-    document.getElementById('btn-sensor').onclick = async function() {
+        // Step 2: Request Sensors (The Hard Part)
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            // iOS 13+ Path
+            // This is the path for iPhone (iOS)
             try {
                 const permission = await DeviceOrientationEvent.requestPermission();
                 if (permission === 'granted') {
-                    startSensors();
+                    startTracking();
+                    alert("iOS Sensor Permission: GRANTED");
                 } else {
-                    log.innerText += "Sensor Permission: DENIED\n";
+                    alert("iOS Sensor Permission: DENIED. Check your Settings > Safari > Motion & Orientation.");
                 }
             } catch (e) {
-                log.innerText += "Sensor Error: " + e.message + "\n";
+                alert("iOS Permission Error: " + e);
             }
         } else {
-            // Android or Older iOS Path
-            startSensors();
+            // This is the path for Android or older phones
+            alert("No permission required for this device. Starting sensors...");
+            startTracking();
         }
     };
 
-    function startSensors() {
-        window.addEventListener('deviceorientation', (e) => {
-            alpha = e.webkitCompassHeading || (360 - e.alpha) || 0;
-            beta = e.beta || 0;
+    function startTracking() {
+        window.addEventListener('deviceorientation', (event) => {
+            valA.innerText = Math.floor(event.alpha || 0);
+            valB.innerText = Math.floor(event.beta || 0);
+            valG.innerText = Math.floor(event.gamma || 0);
+            
+            // Visual feedback that data is flowing
+            document.body.style.borderColor = (Math.floor(event.alpha) % 2 === 0) ? "#0f0" : "#000";
         }, true);
         
-        const btn = document.getElementById('btn-sensor');
-        btn.style.background = "#222";
-        btn.innerText = "SENSORS: OK";
-        btn.disabled = true;
-        checkReady();
-    }
-
-    function checkReady() {
-        if (document.getElementById('btn-cam').disabled && document.getElementById('btn-sensor').disabled) {
-            document.getElementById('btn-start').style.display = "block";
-        }
-    }
-
-    // --- STEP 3: START ---
-    document.getElementById('btn-start').onclick = function() {
-        document.getElementById('gatekeeper').style.display = "none";
-        active = true;
-        // Spawn one right in front immediately
-        spawn(true);
-        // Spawn more randomly
-        for(let i=0; i<4; i++) spawn(false);
-        requestAnimationFrame(loop);
-    };
-
-    function spawn(inFront) {
-        let tA = inFront ? alpha : Math.random() * 360;
-        let tB = inFront ? beta : (Math.random() * 40) + 60;
-
-        const el = document.createElement('div');
-        el.className = 'treasure';
-        el.dataset.a = tA;
-        el.dataset.b = tB;
-        
-        el.onclick = function() {
-            score++;
-            document.getElementById('score').innerText = score;
-            this.remove();
-            treasures = treasures.filter(t => t !== el);
-            setTimeout(() => spawn(false), 2000);
-        };
-
-        document.getElementById('ar-world').appendChild(el);
-        treasures.push(el);
-    }
-
-    function loop() {
-        if (!active) return;
-
-        const ww = window.innerWidth;
-        const wh = window.innerHeight;
-        const fov = ww / 60;
-
-        treasures.forEach(t => {
-            let tA = parseFloat(t.dataset.a);
-            let tB = parseFloat(t.dataset.b);
-
-            // Angle difference logic
-            let da = tA - alpha;
-            while (da < -180) da += 360;
-            while (da > 180) da -= 360;
-            
-            let db = tB - beta;
-
-            let x = (ww/2) + (da * fov);
-            let y = (wh/2) - (db * fov);
-
-            t.style.left = x + "px";
-            t.style.top = y + "px";
-
-            // Visibility culling
-            t.style.display = (Math.abs(da) > 40) ? 'none' : 'flex';
-        });
-
-        requestAnimationFrame(loop);
+        document.getElementById('main-btn').innerText = "SENSORS ACTIVE - MOVE PHONE";
+        document.getElementById('main-btn').style.background = "#555";
     }
 </script>
 </body>
