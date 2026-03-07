@@ -3,210 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Treasure Hunter - Step Fix</title>
+    <title>AR Treasure Hunter - THE FIX</title>
     <style>
-        :root { --accent: #d4af37; --bg: #0a0a0c; --green: #2ecc71; }
-        body { margin: 0; background: var(--bg); color: #fff; font-family: 'Courier New', monospace; overflow: hidden; touch-action: none; text-align: center; }
+        :root { --accent: #d4af37; --bg: #000; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
         
         #camera-feed { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -1; }
         
-        header { position: absolute; top: 0; left: 0; width: 100%; padding: 15px 0; background: rgba(0, 0, 0, 0.8); border-bottom: 2px solid var(--accent); z-index: 10; }
-        .stats { font-weight: bold; font-size: 18px; margin-top: 5px; color: #00ffff; }
-
-        /* Setup Overlay */
-        #setup-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 30; padding: 20px; box-sizing: border-box; }
-        .step-box { width: 100%; max-width: 300px; margin: 10px 0; padding: 20px; border: 1px solid #333; border-radius: 10px; background: #111; }
-        .step-box.done { border-color: var(--green); }
-        .step-box.done .status-icon { color: var(--green); }
+        /* The "Gatekeeper" UI */
+        #gatekeeper { position: fixed; inset: 0; background: #111; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
+        .permission-btn { width: 80%; padding: 20px; margin: 10px; border: none; border-radius: 10px; font-weight: bold; font-size: 18px; cursor: pointer; }
+        #btn-cam { background: #3498db; color: white; }
+        #btn-sensor { background: #e67e22; color: white; }
+        #btn-start { background: #2ecc71; color: white; display: none; }
         
-        .btn { width: 100%; padding: 15px; background: var(--accent); color: #000; border: none; border-radius: 5px; font-weight: bold; font-family: 'Courier New'; font-size: 16px; cursor: pointer; }
-        .btn:disabled { background: #333; color: #777; cursor: not-allowed; }
-        .status-icon { font-size: 24px; margin-bottom: 10px; display: block; color: #555; }
-
-        #start-game-btn { margin-top: 20px; background: var(--green); display: none; }
+        .status { font-size: 12px; margin-bottom: 20px; color: #888; }
+        .error-log { color: #ff4444; font-family: monospace; font-size: 10px; margin-top: 20px; }
 
         /* Game Elements */
-        #ar-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; pointer-events: none; }
-        .treasure { position: absolute; width: 70px; height: 70px; background: gold; border: 4px solid #fff; border-radius: 12px; box-shadow: 0 0 30px gold; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #000; font-size: 30px; pointer-events: auto; transform: translate(-50%, -50%); }
-        .treasure::after { content: '💰'; }
-
-        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; border: 1px solid white; border-radius: 50%; z-index: 5; opacity: 0.5; pointer-events: none; }
-        #debug { position: absolute; bottom: 30px; left: 20px; color: #0f0; font-size: 12px; z-index: 15; text-align: left; background: rgba(0,0,0,0.5); padding: 5px; }
+        #ar-world { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+        .treasure { position: absolute; width: 80px; height: 80px; background: gold; border: 5px solid white; border-radius: 15px; display: flex; justify-content: center; align-items: center; font-size: 40px; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 0 20px gold; }
+        .treasure::after { content: '🎁'; }
+        
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; pointer-events: none; }
+        #stats { position: absolute; top: 20px; width: 100%; text-align: center; font-weight: bold; z-index: 20; text-shadow: 2px 2px #000; }
     </style>
 </head>
 <body>
 
 <video id="camera-feed" autoplay playsinline></video>
 
-<div id="setup-overlay">
-    <h1 style="color:var(--accent); margin-bottom: 30px;">AR SCANNER SETUP</h1>
-
-    <div class="step-box" id="step1-box">
-        <span class="status-icon" id="s1-icon">○</span>
-        <button class="btn" id="cam-btn">STEP 1: ENABLE CAMERA</button>
-    </div>
-
-    <div class="step-box" id="step2-box">
-        <span class="status-icon" id="s2-icon">○</span>
-        <button class="btn" id="sensor-btn">STEP 2: ENABLE SENSORS</button>
-    </div>
-
-    <button class="btn" id="start-game-btn">START SCANNING</button>
+<div id="gatekeeper">
+    <h2>AR INITIALIZATION</h2>
+    <p class="status">Browsers require manual approval for each sensor.</p>
+    
+    <button id="btn-cam" class="permission-btn">1. ALLOW CAMERA</button>
+    <button id="btn-sensor" class="permission-btn">2. ALLOW MOTION</button>
+    
+    <button id="btn-start" class="permission-btn">START SCANNER</button>
+    
+    <div id="log" class="error-log"></div>
 </div>
 
-<header>
-    <div>TREASURE HUNTER</div>
-    <div class="stats">FOUND: <span id="score-display">0</span></div>
-</header>
-
+<div id="stats">FOUND: <span id="score">0</span></div>
 <div id="crosshair"></div>
-<div id="ar-container"></div>
-<div id="debug">Sensors: OFF</div>
+<div id="ar-world"></div>
 
 <script>
     let score = 0;
     let treasures = [];
-    let currentAlpha = 0;
-    let currentBeta = 0;
-    let isRunning = false;
-    let camReady = false;
-    let sensorsReady = false;
+    let alpha = 0, beta = 0;
+    let active = false;
+    const log = document.getElementById('log');
 
-    const camBtn = document.getElementById('cam-btn');
-    const sensorBtn = document.getElementById('sensor-btn');
-    const startBtn = document.getElementById('start-game-btn');
-
-    // STEP 1: CAMERA
-    camBtn.onclick = async () => {
+    // --- STEP 1: CAMERA ---
+    document.getElementById('btn-cam').onclick = async function() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
             document.getElementById('camera-feed').srcObject = stream;
-            camReady = true;
-            document.getElementById('step1-box').classList.add('done');
-            document.getElementById('s1-icon').innerText = '●';
-            camBtn.innerText = "CAMERA ACTIVE";
-            camBtn.disabled = true;
+            this.style.background = "#222";
+            this.innerText = "CAMERA: OK";
+            this.disabled = true;
             checkReady();
-        } catch (err) {
-            alert("Camera Error: " + err);
+        } catch (e) {
+            log.innerText += "Cam Error: " + e.message + "\n";
         }
     };
 
-    // STEP 2: SENSORS (Critical for iOS)
-    sensorBtn.onclick = async () => {
-        // For iOS 13+
+    // --- STEP 2: SENSORS ---
+    document.getElementById('btn-sensor').onclick = async function() {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            // iOS 13+ Path
             try {
-                const response = await DeviceOrientationEvent.requestPermission();
-                if (response === 'granted') {
-                    activateSensors();
+                const permission = await DeviceOrientationEvent.requestPermission();
+                if (permission === 'granted') {
+                    startSensors();
                 } else {
-                    alert("Permission denied. Sensors won't work.");
+                    log.innerText += "Sensor Permission: DENIED\n";
                 }
-            } catch (err) {
-                alert("Sensor Error: " + err);
+            } catch (e) {
+                log.innerText += "Sensor Error: " + e.message + "\n";
             }
         } else {
-            // Android/Older iOS/Desktop
-            activateSensors();
+            // Android or Older iOS Path
+            startSensors();
         }
     };
 
-    function activateSensors() {
+    function startSensors() {
         window.addEventListener('deviceorientation', (e) => {
-            // Normalizing Compass (Alpha) and Tilt (Beta)
-            currentAlpha = e.webkitCompassHeading || (360 - e.alpha) || 0;
-            currentBeta = e.beta || 0;
-            document.getElementById('debug').innerHTML = `A: ${Math.floor(currentAlpha)} | B: ${Math.floor(currentBeta)}`;
-        });
+            alpha = e.webkitCompassHeading || (360 - e.alpha) || 0;
+            beta = e.beta || 0;
+        }, true);
         
-        sensorsReady = true;
-        document.getElementById('step2-box').classList.add('done');
-        document.getElementById('s2-icon').innerText = '●';
-        sensorBtn.innerText = "SENSORS ACTIVE";
-        sensorBtn.disabled = true;
+        const btn = document.getElementById('btn-sensor');
+        btn.style.background = "#222";
+        btn.innerText = "SENSORS: OK";
+        btn.disabled = true;
         checkReady();
     }
 
     function checkReady() {
-        if (camReady && sensorsReady) {
-            startBtn.style.display = 'block';
+        if (document.getElementById('btn-cam').disabled && document.getElementById('btn-sensor').disabled) {
+            document.getElementById('btn-start').style.display = "block";
         }
     }
 
-    startBtn.onclick = () => {
-        document.getElementById('setup-overlay').style.display = 'none';
-        isRunning = true;
-        // Spawn treasure immediately in front of user to verify it works
-        spawnTreasure(true);
-        // Spawn 4 more random ones
-        for(let i=0; i<4; i++) spawnTreasure(false);
-        requestAnimationFrame(updateLoop);
+    // --- STEP 3: START ---
+    document.getElementById('btn-start').onclick = function() {
+        document.getElementById('gatekeeper').style.display = "none";
+        active = true;
+        // Spawn one right in front immediately
+        spawn(true);
+        // Spawn more randomly
+        for(let i=0; i<4; i++) spawn(false);
+        requestAnimationFrame(loop);
     };
 
-    function spawnTreasure(inFront = false) {
-        let tAlpha, tBeta;
-        if (inFront) {
-            tAlpha = currentAlpha;
-            tBeta = currentBeta;
-        } else {
-            tAlpha = Math.floor(Math.random() * 360);
-            tBeta = Math.floor(Math.random() * 50) + 50; 
-        }
+    function spawn(inFront) {
+        let tA = inFront ? alpha : Math.random() * 360;
+        let tB = inFront ? beta : (Math.random() * 40) + 60;
 
-        const box = document.createElement('div');
-        box.className = 'treasure';
-        box.dataset.alpha = tAlpha;
-        box.dataset.beta = tBeta;
-
-        box.onclick = function() {
+        const el = document.createElement('div');
+        el.className = 'treasure';
+        el.dataset.a = tA;
+        el.dataset.b = tB;
+        
+        el.onclick = function() {
             score++;
-            document.getElementById('score-display').innerText = score;
+            document.getElementById('score').innerText = score;
             this.remove();
-            treasures = treasures.filter(t => t !== box);
-            setTimeout(() => spawnTreasure(false), 1500); 
+            treasures = treasures.filter(t => t !== el);
+            setTimeout(() => spawn(false), 2000);
         };
 
-        document.getElementById('ar-container').appendChild(box);
-        treasures.push(box);
+        document.getElementById('ar-world').appendChild(el);
+        treasures.push(el);
     }
 
-    function getAngleDiff(target, current) {
-        let diff = target - current;
-        while (diff < -180) diff += 360;
-        while (diff > 180) diff -= 360;
-        return diff;
-    }
+    function loop() {
+        if (!active) return;
 
-    function updateLoop() {
-        if (!isRunning) return;
+        const ww = window.innerWidth;
+        const wh = window.innerHeight;
+        const fov = ww / 60;
 
-        const sw = window.innerWidth;
-        const sh = window.innerHeight;
-        const fov = sw / 60; 
+        treasures.forEach(t => {
+            let tA = parseFloat(t.dataset.a);
+            let tB = parseFloat(t.dataset.b);
 
-        treasures.forEach(box => {
-            const tA = parseFloat(box.dataset.alpha);
-            const tB = parseFloat(box.dataset.beta);
+            // Angle difference logic
+            let da = tA - alpha;
+            while (da < -180) da += 360;
+            while (da > 180) da -= 360;
+            
+            let db = tB - beta;
 
-            const dx = getAngleDiff(tA, currentAlpha);
-            const dy = tB - currentBeta;
+            let x = (ww/2) + (da * fov);
+            let y = (wh/2) - (db * fov);
 
-            const x = (sw / 2) + (dx * fov);
-            const y = (sh / 2) - (dy * fov);
+            t.style.left = x + "px";
+            t.style.top = y + "px";
 
-            box.style.left = `${x}px`;
-            box.style.top = `${y}px`;
-
-            // Only show if box is in front (roughly 60 degree cone)
-            if (Math.abs(dx) > 60) {
-                box.style.display = 'none';
-            } else {
-                box.style.display = 'flex';
-            }
+            // Visibility culling
+            t.style.display = (Math.abs(da) > 40) ? 'none' : 'flex';
         });
 
-        requestAnimationFrame(updateLoop);
+        requestAnimationFrame(loop);
     }
 </script>
 </body>
