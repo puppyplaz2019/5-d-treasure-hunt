@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Treasure Hunter</title>
+    <style>
+        :root { --accent: #d4af37; --bg: #0a0a0c; --radar: #002200; --radar-line: #00ff00; }
+        body { margin: 0; background: var(--bg); color: #fff; font-family: 'Courier New', monospace; text-align: center; overflow: hidden; touch-action: none; }
+        
+        header { padding: 20px; background: #111; border-bottom: 2px solid var(--accent); }
+        h1 { margin: 0; font-size: 24px; color: var(--accent); text-transform: uppercase; }
+        
+        .stats { display: flex; justify-content: space-around; padding: 10px; background: #222; font-weight: bold; font-size: 18px; }
+        .stats span { color: var(--accent); }
+
+        #radar-container { position: relative; width: 300px; height: 300px; margin: 30px auto; border-radius: 50%; border: 4px solid #333; background: var(--radar); overflow: hidden; box-shadow: 0 0 20px rgba(0, 255, 0, 0.2); }
+        
+        /* Radar sweeping animation */
+        #radar-container::after {
+            content: ''; position: absolute; top: 50%; left: 50%; width: 150px; height: 150px;
+            background: linear-gradient(45deg, rgba(0,255,0,0) 50%, rgba(0,255,0,0.4) 100%);
+            transform-origin: 0 0; animation: sweep 4s infinite linear;
+        }
+        @keyframes sweep { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        canvas { position: absolute; top: 0; left: 0; z-index: 10; }
+
+        .btn { padding: 15px 30px; background: var(--accent); color: #000; border: none; border-radius: 5px; font-weight: bold; font-family: 'Courier New'; font-size: 18px; cursor: pointer; margin-top: 20px; transition: 0.2s; }
+        .btn:hover { transform: scale(1.05); }
+        
+        #msg-box { margin-top: 20px; padding: 10px; color: #aaa; font-size: 14px; max-width: 80%; margin-left: auto; margin-right: auto; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Treasure Hunter</h1>
+</header>
+
+<div class="stats">
+    <div>TREASURE: <span id="score-display">0</span></div>
+    <div>ACCURACY: <span id="acc-display">--</span>m</div>
+</div>
+
+<div id="radar-container">
+    <canvas id="radar" width="300" height="300"></canvas>
+</div>
+
+<button id="start-btn" class="btn" onclick="startTracking()">START GPS SCAN</button>
+
+<div id="msg-box">Press start and allow location access to scan for nearby treasure.</div>
+
+<script>
+    const canvas = document.getElementById('radar');
+    const ctx = canvas.getContext('2d');
+    
+    let score = 0;
+    let watchId = null;
+    let playerLat = 0;
+    let playerLon = 0;
+    let treasures = [];
+    let isTracking = false;
+
+    // Game Settings
+    const RADAR_RANGE_METERS = 50; // How far the radar sees (50 meters)
+    const COLLECTION_RADIUS = 5; // Distance in meters to collect a box
+    const SPAWN_DISTANCE = 5; // Spawn a box every ~5 meters (approx 15 feet)
+
+    function startTracking() {
+        if (!navigator.geolocation) {
+            document.getElementById('msg-box').innerText = "GPS is not supported by your browser.";
+            return;
+        }
+
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('msg-box').innerText = "Acquiring GPS Signal... Please walk outside if stuck.";
+
+        // Ask for high accuracy GPS tracking
+        watchId = navigator.geolocation.watchPosition(
+            updatePosition, 
+            handleError, 
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+        );
+    }
+
+    function updatePosition(position) {
+        playerLat = position.coords.latitude;
+        playerLon = position.coords.longitude;
+        const accuracy = position.coords.accuracy; // GPS error margin in meters
+
+        document.getElementById('acc-display').innerText = Math.floor(accuracy);
+        document.getElementById('msg-box').innerText = "Signal locked. Start walking to collect!";
+
+        // If treasures array is empty, this is our first load. Spawn the test grid!
+        if (treasures.length === 0) {
+            spawnTreasuresGrid(playerLat, playerLon);
+        }
+
+        checkCollisions();
+        drawRadar();
+    }
+
+    function handleError(error) {
+        let msg = "GPS Error.";
+        if (error.code === 1) msg = "You denied location access. We need it for the game!";
+        if (error.code === 2) msg = "Network/Satellite signal lost.";
+        if (error.code === 3) msg = "GPS taking too long. Step outside.";
+        document.getElementById('msg-box').innerText = msg;
+        document.getElementById('start-btn').style.display = 'inline-block';
+    }
+
+    // Creates a dense grid of treasures around your starting point
+    function spawnTreasuresGrid(centerLat, centerLon) {
+        // Roughly 1 meter in decimal degrees
+        const meterDeg = 0.000009; 
+        const spacing = SPAWN_DISTANCE * meterDeg;
+
+        // Create a 7x7 grid around the player
+        for (let x = -3; x <= 3; x++) {
+            for (let y = -3; y <= 3; y++) {
+                // Don't put one EXACTLY where you are standing initially
+                if (x === 0 && y === 0) continue; 
+                
+                treasures.push({
+                    lat: centerLat + (y * spacing),
+                    lon: centerLon + (x * spacing),
+                    collected: false
+                });
+            }
+        }
+    }
+
+    // Haversine formula to get exact distance in meters between two GPS coordinates
+    function getDistanceMeters(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Earth radius in meters
+        const p1 = lat1 * Math.PI/180;
+        const p2 = lat2 * Math.PI/180;
+        const dp = (lat2-lat1) * Math.PI/180;
+        const dl = (lon2-lon1) * Math.PI/180;
+
+        const a = Math.sin(dp/2) * Math.sin(dp/2) +
+                  Math.cos(p1) * Math.cos(p2) *
+                  Math.sin(dl/2) * Math.sin(dl/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c;
+    }
+
+    function checkCollisions() {
+        for (let i = 0; i < treasures.length; i++) {
+            let t = treasures[i];
+            if (!t.collected) {
+                let dist = getDistanceMeters(playerLat, playerLon, t.lat, t.lon);
+                // If you are within 5 meters (roughly 15 feet) of the box
+                if (dist <= COLLECTION_RADIUS) {
+                    t.collected = true;
+                    score++;
+                    document.getElementById('score-display').innerText = score;
+                    navigator.vibrate(200); // Vibrate phone if supported!
+                }
+            }
+        }
+    }
+
+    function drawRadar() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const pixelsPerMeter = (canvas.width / 2) / RADAR_RANGE_METERS; // Scale
+
+        // Draw Player (Center)
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = "#00ffff";
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+
+        // Draw Player's collection radius
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, COLLECTION_RADIUS * pixelsPerMeter, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(0, 255, 255, 0.3)";
+        ctx.stroke();
+
+        // Draw Treasures
+        treasures.forEach(t => {
+            if (!t.collected) {
+                // Calculate distance in meters for X and Y separately
+                // Simple flat-earth approximation since distances are tiny
+                const dyMeters = (t.lat - playerLat) * 111139; 
+                const dxMeters = (t.lon - playerLon) * (111139 * Math.cos(playerLat * Math.PI / 180));
+
+                const drawX = centerX + (dxMeters * pixelsPerMeter);
+                const drawY = centerY - (dyMeters * pixelsPerMeter); // Canvas Y is inverted
+
+                // Only draw if within radar range
+                if (drawX >= 0 && drawX <= canvas.width && drawY >= 0 && drawY <= canvas.height) {
+                    ctx.beginPath();
+                    ctx.arc(drawX, drawY, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = "var(--accent)"; // Gold
+                    ctx.fill();
+                    
+                    // Box shape
+                    ctx.fillStyle = "#ffaa00";
+                    ctx.fillRect(drawX - 3, drawY - 3, 6, 6);
+                }
+            }
+        });
+    }
+</script>
+</body>
+</html>
