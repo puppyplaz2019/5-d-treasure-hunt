@@ -3,28 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AR Treasure Hunter - FIXED</title>
+    <title>AR Treasure Hunter - Step Fix</title>
     <style>
-        :root { --accent: #d4af37; --bg: #000; }
+        :root { --accent: #d4af37; --bg: #0a0a0c; --green: #2ecc71; }
         body { margin: 0; background: var(--bg); color: #fff; font-family: 'Courier New', monospace; overflow: hidden; touch-action: none; text-align: center; }
         
         #camera-feed { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -1; }
         
-        header { position: absolute; top: 0; left: 0; width: 100%; padding: 15px 0; background: rgba(0, 0, 0, 0.7); border-bottom: 2px solid var(--accent); z-index: 10; }
+        header { position: absolute; top: 0; left: 0; width: 100%; padding: 15px 0; background: rgba(0, 0, 0, 0.8); border-bottom: 2px solid var(--accent); z-index: 10; }
         .stats { font-weight: bold; font-size: 18px; margin-top: 5px; color: #00ffff; }
 
-        #overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(10, 10, 12, 0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 20; padding: 20px; box-sizing: border-box; }
+        /* Setup Overlay */
+        #setup-overlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 30; padding: 20px; box-sizing: border-box; }
+        .step-box { width: 100%; max-width: 300px; margin: 10px 0; padding: 20px; border: 1px solid #333; border-radius: 10px; background: #111; }
+        .step-box.done { border-color: var(--green); }
+        .step-box.done .status-icon { color: var(--green); }
         
-        .btn { padding: 20px 40px; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: bold; font-family: 'Courier New'; font-size: 20px; cursor: pointer; margin: 10px; box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
+        .btn { width: 100%; padding: 15px; background: var(--accent); color: #000; border: none; border-radius: 5px; font-weight: bold; font-family: 'Courier New'; font-size: 16px; cursor: pointer; }
+        .btn:disabled { background: #333; color: #777; cursor: not-allowed; }
+        .status-icon { font-size: 24px; margin-bottom: 10px; display: block; color: #555; }
 
+        #start-game-btn { margin-top: 20px; background: var(--green); display: none; }
+
+        /* Game Elements */
         #ar-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2; pointer-events: none; }
-        .treasure { position: absolute; width: 70px; height: 70px; background: gold; border: 4px solid #fff; border-radius: 12px; box-shadow: 0 0 30px gold; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #000; font-size: 30px; pointer-events: auto; transform: translate(-50%, -50%); transition: transform 0.05s linear; }
+        .treasure { position: absolute; width: 70px; height: 70px; background: gold; border: 4px solid #fff; border-radius: 12px; box-shadow: 0 0 30px gold; display: flex; justify-content: center; align-items: center; font-weight: bold; color: #000; font-size: 30px; pointer-events: auto; transform: translate(-50%, -50%); }
         .treasure::after { content: '💰'; }
 
-        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; border: 2px solid white; border-radius: 50%; z-index: 5; opacity: 0.5; pointer-events: none; }
-
-        /* Test Button - visible during gameplay */
-        #test-spawn { position: absolute; bottom: 30px; right: 20px; padding: 10px; background: rgba(255,255,255,0.2); border: 1px solid white; color: white; border-radius: 5px; z-index: 15; font-size: 12px; }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 30px; height: 30px; border: 1px solid white; border-radius: 50%; z-index: 5; opacity: 0.5; pointer-events: none; }
         #debug { position: absolute; bottom: 30px; left: 20px; color: #0f0; font-size: 12px; z-index: 15; text-align: left; background: rgba(0,0,0,0.5); padding: 5px; }
     </style>
 </head>
@@ -32,10 +38,20 @@
 
 <video id="camera-feed" autoplay playsinline></video>
 
-<div id="overlay">
-    <h1 style="color:var(--accent)">SENSORS REQUIRED</h1>
-    <p style="color:#ccc; font-size: 14px;">This game uses your phone's gyroscope to place treasure in the room.</p>
-    <button class="btn" id="start-btn">UNLOCK SENSORS & CAMERA</button>
+<div id="setup-overlay">
+    <h1 style="color:var(--accent); margin-bottom: 30px;">AR SCANNER SETUP</h1>
+
+    <div class="step-box" id="step1-box">
+        <span class="status-icon" id="s1-icon">○</span>
+        <button class="btn" id="cam-btn">STEP 1: ENABLE CAMERA</button>
+    </div>
+
+    <div class="step-box" id="step2-box">
+        <span class="status-icon" id="s2-icon">○</span>
+        <button class="btn" id="sensor-btn">STEP 2: ENABLE SENSORS</button>
+    </div>
+
+    <button class="btn" id="start-game-btn">START SCANNING</button>
 </div>
 
 <header>
@@ -45,72 +61,97 @@
 
 <div id="crosshair"></div>
 <div id="ar-container"></div>
-<button id="test-spawn" onclick="spawnTreasure(true)">SPAWN BOX AT CROSSHAIR</button>
 <div id="debug">Sensors: OFF</div>
 
 <script>
     let score = 0;
     let treasures = [];
-    let currentAlpha = 0; // Compass
-    let currentBeta = 0;  // Tilt
+    let currentAlpha = 0;
+    let currentBeta = 0;
     let isRunning = false;
+    let camReady = false;
+    let sensorsReady = false;
 
-    const startBtn = document.getElementById('start-btn');
+    const camBtn = document.getElementById('cam-btn');
+    const sensorBtn = document.getElementById('sensor-btn');
+    const startBtn = document.getElementById('start-game-btn');
 
-    startBtn.addEventListener('click', async () => {
-        // Step 1: Request Camera
+    // STEP 1: CAMERA
+    camBtn.onclick = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
             document.getElementById('camera-feed').srcObject = stream;
+            camReady = true;
+            document.getElementById('step1-box').classList.add('done');
+            document.getElementById('s1-icon').innerText = '●';
+            camBtn.innerText = "CAMERA ACTIVE";
+            camBtn.disabled = true;
+            checkReady();
         } catch (err) {
-            alert("Camera denied. AR will not work.");
+            alert("Camera Error: " + err);
         }
+    };
 
-        // Step 2: Request Motion (iOS specific)
+    // STEP 2: SENSORS (Critical for iOS)
+    sensorBtn.onclick = async () => {
+        // For iOS 13+
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             try {
                 const response = await DeviceOrientationEvent.requestPermission();
                 if (response === 'granted') {
-                    initGame();
+                    activateSensors();
                 } else {
-                    alert("Motion permission denied.");
+                    alert("Permission denied. Sensors won't work.");
                 }
             } catch (err) {
-                alert("Motion error: " + err);
+                alert("Sensor Error: " + err);
             }
         } else {
-            // Android or Desktop
-            initGame();
+            // Android/Older iOS/Desktop
+            activateSensors();
         }
-    });
+    };
 
-    function initGame() {
-        document.getElementById('overlay').style.display = 'none';
+    function activateSensors() {
         window.addEventListener('deviceorientation', (e) => {
-            // Normalize compass heading
+            // Normalizing Compass (Alpha) and Tilt (Beta)
             currentAlpha = e.webkitCompassHeading || (360 - e.alpha) || 0;
             currentBeta = e.beta || 0;
-            document.getElementById('debug').innerHTML = `ALPHA: ${Math.floor(currentAlpha)}<br>BETA: ${Math.floor(currentBeta)}`;
+            document.getElementById('debug').innerHTML = `A: ${Math.floor(currentAlpha)} | B: ${Math.floor(currentBeta)}`;
         });
         
-        isRunning = true;
-        // Spawn 3 random ones and 1 right in front
-        spawnTreasure(true); 
-        for(let i=0; i<3; i++) spawnTreasure(false);
-        
-        requestAnimationFrame(updateLoop);
+        sensorsReady = true;
+        document.getElementById('step2-box').classList.add('done');
+        document.getElementById('s2-icon').innerText = '●';
+        sensorBtn.innerText = "SENSORS ACTIVE";
+        sensorBtn.disabled = true;
+        checkReady();
     }
 
-    function spawnTreasure(rightInFront = false) {
-        let tAlpha, tBeta;
+    function checkReady() {
+        if (camReady && sensorsReady) {
+            startBtn.style.display = 'block';
+        }
+    }
 
-        if (rightInFront) {
-            // Place it exactly where the phone is currently pointing
+    startBtn.onclick = () => {
+        document.getElementById('setup-overlay').style.display = 'none';
+        isRunning = true;
+        // Spawn treasure immediately in front of user to verify it works
+        spawnTreasure(true);
+        // Spawn 4 more random ones
+        for(let i=0; i<4; i++) spawnTreasure(false);
+        requestAnimationFrame(updateLoop);
+    };
+
+    function spawnTreasure(inFront = false) {
+        let tAlpha, tBeta;
+        if (inFront) {
             tAlpha = currentAlpha;
             tBeta = currentBeta;
         } else {
             tAlpha = Math.floor(Math.random() * 360);
-            tBeta = Math.floor(Math.random() * 40) + 60; // Keep it near eye-level
+            tBeta = Math.floor(Math.random() * 50) + 50; 
         }
 
         const box = document.createElement('div');
@@ -123,7 +164,7 @@
             document.getElementById('score-display').innerText = score;
             this.remove();
             treasures = treasures.filter(t => t !== box);
-            setTimeout(() => spawnTreasure(false), 1000); // Replacement
+            setTimeout(() => spawnTreasure(false), 1500); 
         };
 
         document.getElementById('ar-container').appendChild(box);
@@ -142,7 +183,7 @@
 
         const sw = window.innerWidth;
         const sh = window.innerHeight;
-        const fov = sw / 60; // Field of View scaling
+        const fov = sw / 60; 
 
         treasures.forEach(box => {
             const tA = parseFloat(box.dataset.alpha);
@@ -157,7 +198,7 @@
             box.style.left = `${x}px`;
             box.style.top = `${y}px`;
 
-            // If it's behind the player, hide it
+            // Only show if box is in front (roughly 60 degree cone)
             if (Math.abs(dx) > 60) {
                 box.style.display = 'none';
             } else {
