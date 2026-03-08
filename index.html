@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Global AR Treasure</title>
+    <title>Global AR - Line of Sight</title>
     <style>
         :root { --gold: #d4af37; --cyan: #00ffff; }
         body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; touch-action: none; text-align: center; }
         
-        #camera-bg { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: -1; }
+        /* The Full-Screen Camera Fix */
+        #camera-bg { position: fixed; top: 0; left: 0; min-width: 100vw; min-height: 100vh; width: 100%; height: 100%; object-fit: cover; z-index: -1; transform: scale(1.05); }
         
         #setup { position: fixed; inset: 0; background: #111; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
         .btn { width: 90%; padding: 15px; margin: 10px; border: none; border-radius: 8px; font-weight: bold; background: var(--gold); cursor: pointer; font-size: 16px; }
@@ -19,8 +20,7 @@
 
         #world { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
         
-        /* Treasures scale based on distance, so we don't hardcode width/height here */
-        .box { position: absolute; background: linear-gradient(45deg, #ffd700, #ff8c00); border: 3px solid #fff; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 2em; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 0 20px gold; cursor: pointer; transition: left 0.1s, width 0.3s, height 0.3s; }
+        .box { position: absolute; background: linear-gradient(45deg, #ffd700, #ff8c00); border: 3px solid #fff; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 2em; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 0 20px gold; cursor: pointer; transition: width 0.3s, height 0.3s; }
         .box::after { content: '🎁'; }
         
         #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 40px; background: rgba(0,255,255,0.5); z-index: 2; pointer-events: none; }
@@ -34,8 +34,8 @@
 <video id="camera-bg" autoplay playsinline></video>
 
 <div id="setup">
-    <h2 style="color:var(--gold); margin-top:0;">SYSTEM STARTUP</h2>
-    <p style="font-size: 14px; color:#aaa;">We need all 3 systems online to place boxes in the real world.</p>
+    <h2 style="color:var(--gold); margin-top:0;">LINE OF SIGHT SPAWN</h2>
+    <p style="font-size: 14px; color:#aaa;">Point your phone at an EMPTY SPACE before clicking Start.</p>
     <button id="b1" class="btn">1. ENABLE CAMERA</button>
     <button id="b2" class="btn">2. ENABLE COMPASS</button>
     <button id="b3" class="btn">3. ACQUIRE GPS</button>
@@ -57,7 +57,6 @@
     let myLat = 0, myLon = 0, myHeading = 0;
     let active = false;
 
-    // --- BUTTON LOGIC ---
     const b1 = document.getElementById('b1'), b2 = document.getElementById('b2'), b3 = document.getElementById('b3'), bStart = document.getElementById('bStart');
 
     b1.onclick = async () => {
@@ -87,7 +86,6 @@
             myLat = pos.coords.latitude;
             myLon = pos.coords.longitude;
             
-            // Keep watching GPS for movement
             navigator.geolocation.watchPosition(p => {
                 myLat = p.coords.latitude;
                 myLon = p.coords.longitude;
@@ -99,45 +97,37 @@
 
     function checkReady() { if (b1.disabled && b2.disabled && b3.disabled) bStart.style.display = "block"; }
 
-    // --- GAME LOGIC ---
+    // --- NEW LINE OF SIGHT SPAWN LOGIC ---
     bStart.onclick = () => {
         document.getElementById('setup').style.display = "none";
         active = true;
         
-        // 1. Spawn 10 boxes very close to the user (testing cluster)
-        for(let i=0; i<10; i++) {
-            // Random offset of about 2 to 5 meters (roughly 6 to 15 feet)
-            let latOffset = (Math.random() - 0.5) * 0.00008; 
-            let lonOffset = (Math.random() - 0.5) * 0.00008;
-            spawn(myLat + latOffset, myLon + lonOffset, "Local Test Box");
+        // Spawn 10 boxes directly in front of where you are currently looking
+        // Spaced 2 meters (about 6 feet) apart
+        for(let i=1; i<=10; i++) {
+            let distMeters = i * 2; 
+            let coord = getPointAhead(myLat, myLon, myHeading, distMeters);
+            spawn(coord.lat, coord.lon);
         }
-
-        // 2. Spawn Specific Real-World Locations!
-        // Example: The Eiffel Tower
-        spawn(48.8584, 2.2945, "Eiffel Tower Treasure");
-        // Example: Statue of Liberty
-        spawn(40.6892, -74.0445, "Liberty Treasure");
 
         requestAnimationFrame(loop);
     };
 
-    function spawn(lat, lon, name) {
+    function spawn(lat, lon) {
         const el = document.createElement('div');
         el.className = 'box';
         el.dataset.lat = lat;
         el.dataset.lon = lon;
-        el.dataset.name = name;
 
         el.onclick = function() {
-            // Only allow collection if within 10 meters (approx 30 feet)
             let dist = getDistance(myLat, myLon, parseFloat(this.dataset.lat), parseFloat(this.dataset.lon));
-            if (dist < 10) {
+            if (dist < 10) { // Must be within 10 meters to collect
                 score++;
                 document.getElementById('s').innerText = score;
                 this.remove();
                 treasures = treasures.filter(t => t !== el);
             } else {
-                alert(`Too far! You are ${Math.floor(dist)}m away from this box.`);
+                alert(`Too far! Walk closer. (${Math.floor(dist)}m away)`);
             }
         };
 
@@ -147,12 +137,11 @@
 
     // --- MATH HELPERS ---
     function getDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371e3; // Earth radius in meters
+        const R = 6371e3; 
         const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
         const dp = (lat2-lat1) * Math.PI/180, dl = (lon2-lon1) * Math.PI/180;
         const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c; // Distance in meters
+        return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))); 
     }
 
     function getBearing(lat1, lon1, lat2, lon2) {
@@ -160,56 +149,68 @@
         const dl = (lon2-lon1) * Math.PI/180;
         const y = Math.sin(dl) * Math.cos(l2);
         const x = Math.cos(l1)*Math.sin(l2) - Math.sin(l1)*Math.cos(l2)*Math.cos(dl);
-        let brng = Math.atan2(y, x) * 180 / Math.PI;
-        return (brng + 360) % 360; // Bearing in degrees (0-360)
+        return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360; 
+    }
+
+    // Projects a GPS coordinate straight ahead based on your heading
+    function getPointAhead(lat, lon, heading, distanceMeters) {
+        const R = 6371e3; // Earth radius in meters
+        const brng = heading * Math.PI / 180;
+        let lat1 = lat * Math.PI / 180;
+        let lon1 = lon * Math.PI / 180;
+
+        let lat2 = Math.asin(Math.sin(lat1) * Math.cos(distanceMeters/R) + Math.cos(lat1) * Math.sin(distanceMeters/R) * Math.cos(brng));
+        let lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(distanceMeters/R) * Math.cos(lat1), Math.cos(distanceMeters/R) - Math.sin(lat1) * Math.sin(lat2));
+
+        return { lat: lat2 * 180 / Math.PI, lon: lon2 * 180 / Math.PI };
     }
 
     // --- RENDER LOOP ---
     function loop() {
         if (!active) return;
         const ww = window.innerWidth, wh = window.innerHeight;
-        const fov = ww / 60; // Field of view
+        const fov = ww / 60; 
         let closestDist = 9999999;
 
-        document.getElementById('debug').innerHTML = `My Lat: ${myLat.toFixed(5)}<br>My Lon: ${myLon.toFixed(5)}<br>Heading: ${Math.floor(myHeading)}°`;
+        document.getElementById('debug').innerHTML = `H: ${Math.floor(myHeading)}°`;
 
         treasures.forEach(t => {
             let tLat = parseFloat(t.dataset.lat);
             let tLon = parseFloat(t.dataset.lon);
 
-            // 1. Where is the box compared to me?
             let targetBearing = getBearing(myLat, myLon, tLat, tLon);
             let distMeters = getDistance(myLat, myLon, tLat, tLon);
 
             if (distMeters < closestDist) closestDist = distMeters;
 
-            // 2. Is it in front of my camera?
             let angleDiff = targetBearing - myHeading;
             if (angleDiff < -180) angleDiff += 360;
             if (angleDiff > 180) angleDiff -= 360;
 
-            // 3. Draw it on screen
             const x = (ww / 2) + (angleDiff * fov);
-            // Lock vertical height exactly to the middle of the screen (horizon line)
             const y = (wh / 2); 
 
             t.style.left = x + "px";
             t.style.top = y + "px";
 
-            // Scale size based on distance! (Closer = bigger)
-            let size = 100 - (distMeters * 2);
-            if (size < 20) size = 20; // Don't let them get too tiny
-            if (size > 150) size = 150; // Don't let them fill the screen
+            // Make them smaller the further away they are
+            let size = 120 - (distMeters * 3);
+            if (size < 20) size = 20; 
+            if (size > 150) size = 150; 
             
             t.style.width = size + "px";
             t.style.height = size + "px";
-            t.style.fontSize = (size / 2) + "px"; // Scale the emoji
+            t.style.fontSize = (size / 2) + "px"; 
 
-            // Hide if it's behind you (outside camera view)
             t.style.display = (Math.abs(angleDiff) > 50) ? 'none' : 'flex';
         });
 
-        document.getElementById('closest').innerText = Math.floor(closestDist);
+        if (closestDist === 9999999) {
+            document.getElementById('closest').innerText = "--";
+        } else {
+            document.getElementById('closest').innerText = Math.floor(closestDist);
+        }
+        
         requestAnimationFrame(loop);
     }
 </script>
