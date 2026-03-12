@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sanco AR - Final PC/iPad Fix</title>
+    <title>Sanco AR - Final Texas Sync</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --gold: #d4af37; --cyan: #00ffff; }
         body { margin: 0; background: #000; color: #fff; font-family: monospace; overflow: hidden; touch-action: none; user-select: none; }
@@ -13,22 +14,19 @@
         #setup { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .btn { width: 250px; padding: 20px; margin: 10px; border: none; background: var(--gold); font-weight: bold; cursor: pointer; border-radius: 5px; }
 
-        /* HUD & Compass */
         #hud { position: absolute; top: 0; width: 100%; height: 60px; background: rgba(0,0,0,0.8); z-index: 10; display: flex; align-items: center; justify-content: space-around; border-bottom: 2px solid var(--gold); }
         #compass-bar { position: absolute; top: 65px; width: 200px; height: 20px; border: 1px solid #444; left: 50%; transform: translateX(-50%); overflow: hidden; background: #111; }
         #compass-line { width: 2px; height: 100%; background: red; position: absolute; left: 50%; }
 
-        /* Crosshair Fix */
         #crosshair { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; border: 2px solid var(--cyan); border-radius: 50%; transform: translate(-50%, -50%); z-index: 20; pointer-events: none; }
         #crosshair::before { content: ''; position: absolute; top: 50%; left: -10px; width: 60px; height: 1px; background: var(--cyan); }
         #crosshair::after { content: ''; position: absolute; left: 50%; top: -10px; width: 1px; height: 60px; background: var(--cyan); }
 
-        /* World */
         #world { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
         .box { position: absolute; width: 80px; height: 80px; background: gold; border: 2px solid #fff; display: flex; justify-content: center; align-items: center; font-size: 40px; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 0 15px gold; cursor: pointer; }
         .box::after { content: '🎁'; }
 
-        #debug { position: absolute; bottom: 10px; width: 100%; text-align: center; font-size: 11px; color: #0f0; }
+        #debug { position: absolute; bottom: 10px; width: 100%; text-align: center; font-size: 11px; color: #0f0; background: rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -43,8 +41,8 @@
 </div>
 
 <div id="hud">
-    <div>FOUND: <span id="score-val" style="color:var(--cyan)">0</span></div>
-    <div id="status-msg">PC/TABLET MODE</div>
+    <div>UNFOUND: <span id="count" style="color:var(--cyan)">0</span></div>
+    <div id="status-msg">TEXAS SERVER</div>
 </div>
 
 <div id="compass-bar"><div id="compass-line"></div></div>
@@ -53,13 +51,18 @@
 <div id="debug">Ready...</div>
 
 <script>
-    let score = 0, myHeading = 0, active = false;
+    // --- YOUR KEYS ALREADY INSERTED ---
+    const SUPABASE_URL = 'https://zfxyoydjogffbkxbctmc.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmeHlveWRqb2dmZmJreGJjdG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwOTcwMzcsImV4cCI6MjA4ODY3MzAzN30.q2HSS4iKaf6hjomIWWkDjARwaUqHxfhGTGJXIbyPiow';
+    
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let myLat = 31.8976, myLon = -100.4819, myHeading = 0;
     let treasures = [];
-    let isDragging = false, lastX = 0;
+    let isDragging = false, lastX = 0, active = false;
 
     const b1 = document.getElementById('b1'), b2 = document.getElementById('b2'), bStart = document.getElementById('bStart');
 
-    // --- STEP 1: CAM ---
     b1.onclick = async () => {
         try {
             const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
@@ -68,88 +71,114 @@
         } catch(e) { b1.innerText = "CAMERA: BYPASSED"; b1.disabled = true; checkReady(); }
     };
 
-    // --- STEP 2: SENSORS (PC & iPad Hybrid) ---
     b2.onclick = async () => {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            const p = await DeviceOrientationEvent.requestPermission();
-            if (p === 'granted') {
-                window.addEventListener('deviceorientation', e => { 
-                    myHeading = e.webkitCompassHeading || (360 - e.alpha) || 0;
-                }, true);
-            }
+            try {
+                const p = await DeviceOrientationEvent.requestPermission();
+                if (p === 'granted') {
+                    window.addEventListener('deviceorientation', e => { 
+                        myHeading = e.webkitCompassHeading || (360 - e.alpha) || 0;
+                    }, true);
+                }
+            } catch(e) { console.log("Sensor permission denied"); }
         } else {
-            // Android/PC Fallback
             window.addEventListener('deviceorientation', e => {
                 if (e.alpha !== null) myHeading = (360 - e.alpha);
             });
         }
+        
+        navigator.geolocation.watchPosition(p => {
+            myLat = p.coords.latitude;
+            myLon = p.coords.longitude;
+        }, (err) => console.log("GPS Error"), {enableHighAccuracy: true});
+
         b2.innerText = "SENSORS: OK"; b2.disabled = true; checkReady();
     };
 
     function checkReady() { if(b1.disabled && b2.disabled) bStart.style.display = "block"; }
 
-    // --- PC MOUSE ROTATION (The "Move" Fix) ---
+    // --- PC MOUSE ROTATION ---
     window.onmousedown = (e) => { isDragging = true; lastX = e.clientX; };
     window.onmouseup = () => { isDragging = false; };
     window.onmousemove = (e) => {
         if (isDragging) {
             let delta = e.clientX - lastX;
-            myHeading -= (delta * 0.3); // Spin the world
+            myHeading -= (delta * 0.3);
             lastX = e.clientX;
-            // Clean up heading to 0-360
             myHeading = (myHeading + 360) % 360;
         }
     };
 
-    // --- GAME ENGINE ---
+    // --- REFRESH FROM DATABASE ---
+    async function refreshTreasures() {
+        const { data, error } = await _supabase
+            .from('treasures')
+            .select('*')
+            .eq('collected', false);
+
+        if (error) {
+            document.getElementById('debug').innerText = "DB ERROR: " + error.message;
+            return;
+        }
+
+        const world = document.getElementById('world');
+        world.innerHTML = '';
+        treasures = [];
+
+        data.forEach(item => {
+            const el = document.createElement('div');
+            el.className = 'box';
+            el.dataset.lat = item.lat;
+            el.dataset.lon = item.lon;
+            
+            el.onclick = async () => {
+                const { error: updErr } = await _supabase.from('treasures').update({ collected: true }).eq('id', item.id);
+                if(!updErr) {
+                    el.remove();
+                    refreshTreasures();
+                }
+            };
+
+            world.appendChild(el);
+            treasures.push(el);
+        });
+        document.getElementById('count').innerText = data.length;
+    }
+
     bStart.onclick = () => {
         document.getElementById('setup').style.display = 'none';
         active = true;
-        
-        // Spawn 10 boxes in a circle so you CANNOT miss them
-        for(let i=0; i<10; i++) {
-            let angle = i * 36; // 0, 36, 72... around the circle
-            spawn(angle);
-        }
+        refreshTreasures();
+        setInterval(refreshTreasures, 4000); // Auto-sync every 4 seconds
         requestAnimationFrame(loop);
     };
-
-    function spawn(angle) {
-        const el = document.createElement('div');
-        el.className = 'box';
-        el.dataset.angle = angle;
-        el.onclick = function() {
-            score++;
-            document.getElementById('score-val').innerText = score;
-            this.remove();
-            treasures = treasures.filter(t => t !== el);
-        };
-        document.getElementById('world').appendChild(el);
-        treasures.push(el);
-    }
 
     function loop() {
         if (!active) return;
         const ww = window.innerWidth, wh = window.innerHeight;
         const fov = ww / 60;
 
-        document.getElementById('debug').innerText = `CURRENT HEADING: ${Math.floor(myHeading)}°`;
-        
-        // Update compass bar visual
+        document.getElementById('debug').innerText = `POS: ${myLat.toFixed(4)}, ${myLon.toFixed(4)} | HDG: ${Math.floor(myHeading)}°`;
         document.getElementById('compass-line').style.marginLeft = (myHeading % 360 / 360 * 200) - 100 + "px";
 
         treasures.forEach(t => {
-            const tAngle = parseFloat(t.dataset.angle);
-            let diff = tAngle - myHeading;
+            const tLat = parseFloat(t.dataset.lat);
+            const tLon = parseFloat(t.dataset.lon);
             
+            // Bearing calculation
+            const dy = Math.sin((tLon-myLon)*Math.PI/180) * Math.cos(tLat*Math.PI/180);
+            const dx = Math.cos(myLat*Math.PI/180)*Math.sin(tLat*Math.PI/180) - Math.sin(myLat*Math.PI/180)*Math.cos(tLat*Math.PI/180)*Math.cos((tLon-myLon)*Math.PI/180);
+            const bearing = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+
+            let diff = bearing - myHeading;
             while (diff < -180) diff += 360;
             while (diff > 180) diff -= 360;
 
             t.style.left = (ww/2) + (diff * fov) + "px";
             t.style.top = (wh/2) + "px";
             
-            // Only show if in front of camera (60 degree cone)
-            t.style.display = Math.abs(diff) > 40 ? 'none' : 'flex';
+            // Hide if more than 45 degrees away from center
+            t.style.display = Math.abs(diff) > 45 ? 'none' : 'flex';
         });
         requestAnimationFrame(loop);
     }
