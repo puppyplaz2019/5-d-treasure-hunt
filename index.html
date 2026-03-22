@@ -3,32 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sanco AR - 5D Treasure Hunt</title>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <title>Sanco AR - 5D Final Fix</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
-        :root { --gold: #d4af37; --cyan: #00ffff; --red: #ff4d4d; }
-        body { margin: 0; background: #000; color: #fff; font-family: 'Courier New', monospace; overflow: hidden; touch-action: none; user-select: none; }
+        :root { --gold: #d4af37; --cyan: #00ffff; }
+        body { margin: 0; background: #000; color: #fff; font-family: monospace; overflow: hidden; touch-action: none; }
         #camera-bg { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -1; background: #111; }
-        
-        /* Setup Screen */
         #setup { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-        .btn { width: 260px; padding: 20px; margin: 10px; border: 2px solid var(--gold); background: #111; color: var(--gold); font-weight: bold; border-radius: 12px; -webkit-appearance: none; font-size: 16px; cursor: pointer; }
-        .btn:disabled { border-color: #333; color: #444; opacity: 0.5; }
-        .btn:active { background: var(--gold); color: #000; }
-
-        /* HUD */
-        #hud { position: absolute; top: 0; width: 100%; height: 70px; background: rgba(0,0,0,0.85); z-index: 10; display: flex; align-items: center; justify-content: space-around; border-bottom: 2px solid var(--gold); box-sizing: border-box; padding: 0 10px; }
-        #count-box { font-size: 14px; }
-        #count { color: var(--cyan); font-weight: bold; font-size: 18px; }
-        #spawn-btn { background: var(--cyan); color: #000; border: none; padding: 10px 15px; font-weight: bold; border-radius: 8px; font-size: 14px; -webkit-appearance: none; }
-
-        /* AR World */
+        .btn { width: 260px; padding: 20px; margin: 10px; border: 2px solid var(--gold); background: #111; color: var(--gold); font-weight: bold; border-radius: 12px; -webkit-appearance: none; font-size: 16px; }
+        .btn:disabled { opacity: 0.3; }
+        #hud { position: absolute; top: 0; width: 100%; height: 70px; background: rgba(0,0,0,0.8); z-index: 10; display: flex; align-items: center; justify-content: space-around; border-bottom: 2px solid var(--gold); }
         #world { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
-        .box { position: absolute; width: 85px; height: 85px; background: gold; border: 3px solid #fff; display: flex; justify-content: center; align-items: center; font-size: 40px; pointer-events: auto; transform: translate(-50%, -50%); box-shadow: 0 0 20px gold; border-radius: 15px; transition: transform 0.1s; }
+        .box { position: absolute; width: 80px; height: 80px; background: gold; border: 2px solid #fff; display: flex; justify-content: center; align-items: center; font-size: 40px; pointer-events: auto; transform: translate(-50%, -50%); border-radius: 10px; }
         .box::after { content: '🎁'; }
-        
-        /* Debug Info */
-        #debug { position: absolute; bottom: 10px; width: 100%; text-align: center; font-size: 10px; color: #0f0; background: rgba(0,0,0,0.7); pointer-events: none; padding: 5px 0; }
+        #debug { position: absolute; bottom: 10px; width: 100%; text-align: center; font-size: 10px; color: #0f0; background: rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -36,87 +24,93 @@
 <video id="camera-bg" autoplay playsinline muted></video>
 
 <div id="setup">
-    <h2 id="setup-title" style="color:var(--gold)">CONNECTING TO 5-D...</h2>
-    <p id="setup-msg" style="color:#666;">Synchronizing Database...</p>
-    <button id="b1" class="btn" disabled>1. INITIALIZE OPTICS</button>
-    <button id="b2" class="btn" disabled>2. CALIBRATE SENSORS</button>
-    <button id="bStart" class="btn" style="border-color:#2ecc71; color:#2ecc71; display:none;">START EXPEDITION</button>
+    <h2 id="setup-title" style="color:var(--gold)">INITIALIZING...</h2>
+    <p id="setup-msg" style="color:#666;">If this stays here, tap 'FORCE START'</p>
+    <button id="b1" class="btn">1. ENABLE OPTICS</button>
+    <button id="b2" class="btn">2. CALIBRATE SENSORS</button>
+    <button id="bStart" class="btn" style="border-color:#2ecc71; color:#2ecc71; display:none;">START GAME</button>
+    <button id="bForce" class="btn" style="font-size:10px; border-color:#444; color:#444; margin-top:20px;">FORCE START (SKIP CHECK)</button>
 </div>
 
 <div id="hud">
-    <div id="count-box">UNFOUND: <span id="count">0</span></div>
-    <button id="spawn-btn" style="display:none;">+ SPAWN BOX</button>
+    <div>UNFOUND: <span id="count" style="color:var(--cyan)">0</span></div>
+    <button id="spawn-btn" style="background:var(--cyan); border:none; padding:5px 10px; border-radius:5px; font-weight:bold; display:none;">+ SPAWN</button>
 </div>
 
 <div id="world"></div>
-<div id="debug">System Standby</div>
+<div id="debug">Waiting...</div>
 
 <script>
-    // --- DATABASE CONFIG ---
-    const SB_URL = 'https://tyxezjyjwghgajsilsbg.supabase.co';
-    const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5eGV6anlqd2doZ2Fqc2lsc2JnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNjczODksImV4cCI6MjA4NDg0MzM4OX0.K1elrtEtbsQPTEQNfweLkh7FXq-Er38Oa5aYtqqV65Q';
+    const URL = 'https://tyxezjyjwghgajsilsbg.supabase.co';
+    const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5eGV6anlqd2doZ2Fqc2lsc2JnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNjczODksImV4cCI6MjA4NDg0MzM4OX0.K1elrtEtbsQPTEQNfweLkh7FXq-Er38Oa5aYtqqV65Q';
     
     let _sb, myLat = 0, myLon = 0, myHdg = 0, treasures = [], active = false;
 
-    // --- SYSTEM STARTUP ---
-    function boot() {
-        if (typeof supabase !== 'undefined') {
-            _sb = supabase.createClient(SB_URL, SB_KEY);
-            document.getElementById('setup-title').innerText = "SYSTEM ONLINE";
-            document.getElementById('setup-msg').innerText = "Security bypassed. Tap sequence:";
-            document.getElementById('b1').disabled = false;
-            document.getElementById('b2').disabled = false;
+    // --- THE "FORCE" FIX ---
+    function connect() {
+        // Try both window.supabase and supabase
+        const lib = window.supabase || supabase;
+        if (lib) {
+            _sb = lib.createClient(URL, KEY);
+            document.getElementById('setup-title').innerText = "SYSTEM READY";
+            document.getElementById('debug').innerText = "Connected to Supabase";
         } else {
-            // Retry if library is slow
-            setTimeout(boot, 1000);
+            document.getElementById('debug').innerText = "Lib missing - check internet";
         }
     }
-    window.onload = boot;
 
-    // 1. Camera Access
+    // Attempt connection every second
+    const interval = setInterval(() => {
+        if (_sb) clearInterval(interval);
+        else connect();
+    }, 1000);
+
+    // If the check fails, this button lets you play anyway
+    document.getElementById('bForce').onclick = () => {
+        connect();
+        document.getElementById('setup-title').innerText = "FORCED START";
+        document.getElementById('b1').disabled = false;
+        document.getElementById('b2').disabled = false;
+    };
+
+    // --- BUTTONS ---
     document.getElementById('b1').onclick = async function() {
         try {
             const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
             document.getElementById('camera-bg').srcObject = s;
-            this.innerText = "OPTICS: ACTIVE";
+            this.innerText = "CAMERA OK";
             this.disabled = true;
-            this.style.background = "#030";
-            readyCheck();
-        } catch(e) { alert("Camera Error: Please enable in Safari Settings."); }
+            checkReady();
+        } catch(e) { alert("Camera Error: Check Safari Settings."); }
     };
 
-    // 2. Sensor Calibration (iPad)
     document.getElementById('b2').onclick = async function() {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             const p = await DeviceOrientationEvent.requestPermission();
             if (p === 'granted') {
-                window.addEventListener('deviceorientation', e => { 
-                    myHdg = e.webkitCompassHeading || (360 - e.alpha) || 0; 
-                }, true);
+                window.addEventListener('deviceorientation', e => { myHdg = e.webkitCompassHeading || (360 - e.alpha) || 0; }, true);
             }
         }
         navigator.geolocation.watchPosition(p => {
             myLat = p.coords.latitude;
             myLon = p.coords.longitude;
         }, null, { enableHighAccuracy: true });
-
-        this.innerText = "SENSORS: CALIBRATED";
+        this.innerText = "SENSORS OK";
         this.disabled = true;
-        this.style.background = "#030";
-        readyCheck();
+        checkReady();
     };
 
-    function readyCheck() {
+    function checkReady() {
         if(document.getElementById('b1').disabled && document.getElementById('b2').disabled) {
             document.getElementById('bStart').style.display = "block";
         }
     }
 
-    // --- GAME LOGIC ---
+    // --- GAMEPLAY ---
     async function sync() {
         if(!_sb) return;
         const { data, error } = await _sb.from('treasures').select('*').eq('collected', false);
-        if (error) { console.error(error); return; }
+        if (error) { document.getElementById('debug').innerText = "DB Error: " + error.message; return; }
         
         const world = document.getElementById('world');
         world.innerHTML = '';
@@ -125,10 +119,8 @@
             el.className = 'box';
             el.dataset.lat = item.lat;
             el.dataset.lon = item.lon;
-            // Tap to collect
             el.ontouchend = async (e) => {
                 e.preventDefault();
-                el.style.transform = "scale(0)";
                 await _sb.from('treasures').update({ collected: true }).eq('id', item.id);
                 sync();
             };
@@ -138,12 +130,10 @@
         document.getElementById('count').innerText = treasures.length;
     }
 
-    // SPAWN NEW BOX AT CURRENT GPS
-    document.getElementById('spawn-btn').onclick = async function() {
+    document.getElementById('spawn-btn').onclick = async () => {
         if(!_sb || myLat === 0) return;
-        const { error } = await _sb.from('treasures').insert([{ lat: myLat, lon: myLon, collected: false }]);
-        if(!error) sync();
-        else alert("Spawn Error: " + error.message);
+        await _sb.from('treasures').insert([{ lat: myLat, lon: myLon, collected: false }]);
+        sync();
     };
 
     document.getElementById('bStart').onclick = () => {
@@ -151,19 +141,17 @@
         document.getElementById('spawn-btn').style.display = 'block';
         active = true;
         sync();
-        setInterval(sync, 5000); // Check for new treasures every 5 seconds
+        setInterval(sync, 5000);
         loop();
     };
 
     function loop() {
         if (!active) return;
         const ww = window.innerWidth, wh = window.innerHeight, fov = ww / 60;
-        document.getElementById('debug').innerText = `GPS: ${myLat.toFixed(5)}, ${myLon.toFixed(5)} | HDG: ${Math.floor(myHdg)}°`;
+        document.getElementById('debug').innerText = `GPS: ${myLat.toFixed(4)}, ${myLon.toFixed(4)} | ${Math.floor(myHdg)}°`;
 
         treasures.forEach(t => {
             const tLat = parseFloat(t.dataset.lat), tLon = parseFloat(t.dataset.lon);
-            
-            // Calculate Bearing (Direction to box)
             const dy = Math.sin((tLon-myLon)*Math.PI/180) * Math.cos(tLat*Math.PI/180);
             const dx = Math.cos(myLat*Math.PI/180)*Math.sin(tLat*Math.PI/180) - Math.sin(myLat*Math.PI/180)*Math.cos(tLat*Math.PI/180)*Math.cos((tLon-myLon)*Math.PI/180);
             const bearing = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
@@ -172,11 +160,8 @@
             while (diff < -180) diff += 360;
             while (diff > 180) diff -= 360;
 
-            // Display logic
             t.style.left = (ww/2) + (diff * fov) + "px";
             t.style.top = (wh/2) + "px";
-            
-            // Only show if it's in the camera's field of view (approx 45 degrees)
             t.style.display = Math.abs(diff) > 40 ? 'none' : 'flex';
         });
         requestAnimationFrame(loop);
