@@ -1,141 +1,112 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>5-D MASTER | FINAL RELEASE</title>
+    <title>5-D FINAL</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.1.0/dist/umd/supabase.js"></script>
     <style>
-        :root { --gold: #d4af37; --cyan: #00ffff; }
-        body { margin: 0; background: #000; color: #fff; font-family: monospace; overflow: hidden; }
-        #camera-bg { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
-        #setup { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .btn { width: 260px; padding: 20px; margin: 10px; border: 2px solid var(--gold); background: #111; color: var(--gold); font-weight: bold; border-radius: 12px; -webkit-appearance: none; }
-        #hud { position: fixed; top: 0; width: 100%; height: 70px; background: rgba(0,0,0,0.8); z-index: 50; display: none; align-items: center; justify-content: space-around; border-bottom: 2px solid var(--gold); }
-        .box { position: absolute; width: 80px; height: 80px; background: gold; border: 3px solid #fff; display: flex; justify-content: center; align-items: center; font-size: 40px; border-radius: 15px; transform: translate(-50%, -50%); box-shadow: 0 0 20px gold; z-index: 20; pointer-events: auto; }
-        .box:after { content: '🎁'; }
-        #debug { position: fixed; bottom: 0; width: 100%; font-size: 10px; color: #0f0; background: rgba(0,0,0,0.7); text-align: center; z-index: 60; padding: 5px; height: 40px; overflow: hidden; }
+        body { margin: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
+        #cam { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        #ui { position: fixed; top: 0; width: 100%; z-index: 100; background: rgba(0,0,0,0.7); padding: 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid gold; }
+        #setup-screen { position: fixed; inset: 0; background: #000; z-index: 200; text-align: center; padding-top: 100px; }
+        .box { position: absolute; width: 80px; height: 80px; background: gold; color: #000; font-size: 40px; display: flex; justify-content: center; align-items: center; border-radius: 10px; transform: translate(-50%, -50%); z-index: 50; }
+        .btn { padding: 20px; background: gold; color: #000; font-weight: bold; border: none; border-radius: 10px; margin: 10px; font-size: 16px; -webkit-appearance: none; }
+        #log { position: fixed; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); font-size: 10px; color: #0f0; padding: 5px; z-index: 300; }
     </style>
 </head>
 <body>
 
-<video id="camera-bg" autoplay playsinline muted></video>
+    <video id="cam" autoplay playsinline muted></video>
 
-<div id="setup">
-    <h1 style="color:var(--gold)">5-D CORE</h1>
-    <button class="btn" onclick="fnCam()">[1] ENABLE OPTICS</button>
-    <button class="btn" onclick="fnSens()">[2] SYNC SENSORS</button>
-    <button id="bStart" class="btn" style="display:none; border-color:#0f0; color:#0f0;" onclick="fnStart()">[3] START SYSTEM</button>
-</div>
+    <div id="setup-screen">
+        <button class="btn" onclick="initCam()">ACTIVATE CAMERA</button>
+        <button class="btn" onclick="initSensors()">ACTIVATE SENSORS</button>
+        <button id="go" class="btn" style="display:none; background:#0f0;" onclick="startGame()">START MISSION</button>
+    </div>
 
-<div id="hud">
-    <div>FOUND: <span id="count" style="color:var(--cyan)">0</span></div>
-    <button style="background:var(--cyan); border:none; padding:10px; font-weight:bold; border-radius:5px;" onclick="fnSpawn()">+ DROP BOX</button>
-</div>
+    <div id="ui" style="display:none;">
+        <div>ITEMS: <span id="count">0</span></div>
+        <button class="btn" style="padding:10px; margin:0;" onclick="spawn()">+ DROP BOX</button>
+    </div>
 
-<div id="world"></div>
-<div id="debug">SYSTEM IDLE...</div>
+    <div id="world"></div>
+    <div id="log">SYSTEM READY...</div>
 
 <script>
     var URL = 'https://tyxezjyjwghgajsilsbg.supabase.co';
     var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5eGV6anlqd2doZ2Fqc2lsc2JnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNjczODksImV4cCI6MjA4NDg0MzM4OX0.K1elrtEtbsQPTEQNfweLkh7FXq-Er38Oa5aYtqqV65Q';
-    var _sb, myLat = 0, myLon = 0, myHdg = 0, treasures = [], active = false;
+    var _db, lat = 0, lon = 0, hdg = 0, data = [], active = false;
 
-    function log(msg) { document.getElementById('debug').innerText = msg; }
+    function msg(t) { document.getElementById('log').innerText = t; }
 
-    function fnCam() {
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(function(s) { 
-            document.getElementById('camera-bg').srcObject = s; 
-            log("OPTICS READY"); 
-            fnCheck(); 
-        }).catch(function(e) { log("CAM ERROR: Check Settings"); });
+    function initCam() {
+        navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})
+        .then(function(s){ document.getElementById('cam').srcObject = s; msg("CAMERA OK"); check(); })
+        .catch(function(e){ alert("Camera Error. Check Settings."); });
     }
 
-    function fnSens() {
-        if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
-            DeviceOrientationEvent.requestPermission();
-        }
-        window.addEventListener('deviceorientation', function(e) {
-            myHdg = e.webkitCompassHeading || (360 - e.alpha) || 0;
-        }, true);
-        navigator.geolocation.watchPosition(function(p) {
-            myLat = p.coords.latitude; myLon = p.coords.longitude;
-            log("GPS/SENSORS READY");
-        }, null, { enableHighAccuracy: true });
-        fnCheck();
+    function initSensors() {
+        if(window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) DeviceOrientationEvent.requestPermission();
+        window.addEventListener('deviceorientation', function(e){ hdg = e.webkitCompassHeading || (360-e.alpha) || 0; }, true);
+        navigator.geolocation.watchPosition(function(p){ lat = p.coords.latitude; lon = p.coords.longitude; msg("GPS READY"); check(); }, null, {enableHighAccuracy:true});
     }
 
-    function fnCheck() {
-        // Show start button if we have sensors or optics
-        document.getElementById('bStart').style.display = "block";
-    }
+    function check() { document.getElementById('go').style.display = "inline-block"; }
 
-    function fnSync() {
-        try {
-            // This is the "Compatibility Fix" for the library name
-            var lib = window.supabase || supabase;
-            if (!_sb) _sb = lib.createClient(URL, KEY);
-            
-            _sb.from('treasures').select('*').eq('collected', false)
-            .then(function(res) {
-                if (res.error) { log("DB ERROR: " + res.error.message); return; }
-                treasures = res.data || [];
-                document.getElementById('count').innerText = treasures.length;
-                var w = document.getElementById('world');
-                w.innerHTML = '';
-                for (var i = 0; i < treasures.length; i++) {
-                    var item = treasures[i];
-                    var el = document.createElement('div');
-                    el.className = 'box';
-                    el.style.left = "-1000px";
-                    el.setAttribute('data-lat', item.lat);
-                    el.setAttribute('data-lon', item.lon);
-                    el.onclick = function() { 
-                        this.style.display = 'none';
-                        _sb.from('treasures').update({ collected: true }).eq('id', item.id).then(fnSync);
-                    };
-                    w.appendChild(el);
-                }
-                log("SYNC COMPLETE: " + treasures.length + " ITEMS");
+    function sync() {
+        if(!_db) _db = supabase.createClient(URL, KEY);
+        _db.from('treasures').select('*').eq('collected', false).then(function(res){
+            if(res.error) { msg("SYNC ERROR"); return; }
+            data = res.data || [];
+            document.getElementById('count').innerText = data.length;
+            var w = document.getElementById('world');
+            w.innerHTML = '';
+            data.forEach(function(item, i){
+                var el = document.createElement('div');
+                el.className = 'box';
+                el.innerHTML = '🎁';
+                el.setAttribute('data-lat', item.lat);
+                el.setAttribute('data-lon', item.lon);
+                el.onclick = function(){ _db.from('treasures').update({collected:true}).eq('id', item.id).then(sync); };
+                w.appendChild(el);
             });
-        } catch(e) { log("SUPABASE LOAD FAIL"); }
+            msg("FOUND " + data.length + " ITEMS");
+        });
     }
 
-    function fnSpawn() {
-        if (myLat === 0) { alert("No GPS Lock"); return; }
-        _sb.from('treasures').insert([{ lat: myLat, lon: myLon, collected: false }])
-        .then(function(res) { fnSync(); });
+    function spawn() {
+        if(lat === 0) return;
+        _db.from('treasures').insert([{lat:lat, lon:lon, collected:false}]).then(function(){ sync(); });
     }
 
-    function fnStart() {
-        document.getElementById('setup').style.display = 'none';
-        document.getElementById('hud').style.display = 'flex';
+    function startGame() {
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('ui').style.display = 'flex';
         active = true;
-        fnSync();
-        setInterval(fnSync, 8000);
-        fnLoop();
+        sync();
+        setInterval(sync, 5000);
+        loop();
     }
 
-    function fnLoop() {
-        if (!active) return;
-        var ww = window.innerWidth, wh = window.innerHeight, fov = ww / 60;
+    function loop() {
+        if(!active) return;
+        var ww = window.innerWidth, wh = window.innerHeight, fov = ww/60;
         var boxes = document.getElementsByClassName('box');
-        for (var i = 0; i < boxes.length; i++) {
-            var t = boxes[i];
-            var tLat = parseFloat(t.getAttribute('data-lat'));
-            var tLon = parseFloat(t.getAttribute('data-lon'));
-            var dy = Math.sin((tLon-myLon)*Math.PI/180) * Math.cos(tLat*Math.PI/180);
-            var dx = Math.cos(myLat*Math.PI/180)*Math.sin(tLat*Math.PI/180) - Math.sin(myLat*Math.PI/180)*Math.cos(tLat*Math.PI/180)*Math.cos((tLon-myLon)*Math.PI/180);
+        for(var i=0; i<boxes.length; i++) {
+            var b = boxes[i];
+            var bLat = parseFloat(b.getAttribute('data-lat'));
+            var bLon = parseFloat(b.getAttribute('data-lon'));
+            var dy = Math.sin((bLon-lon)*Math.PI/180) * Math.cos(bLat*Math.PI/180);
+            var dx = Math.cos(lat*Math.PI/180)*Math.sin(bLat*Math.PI/180) - Math.sin(lat*Math.PI/180)*Math.cos(bLat*Math.PI/180)*Math.cos((bLon-lon)*Math.PI/180);
             var bearing = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
-            var diff = bearing - myHdg;
-            while (diff < -180) diff += 360;
-            while (diff > 180) diff -= 360;
-            t.style.left = (ww/2) + (diff * fov) + "px";
-            t.style.top = (wh/2) + "px";
-            t.style.display = Math.abs(diff) > 35 ? 'none' : 'flex';
+            var diff = bearing - hdg;
+            while(diff < -180) diff += 360; while(diff > 180) diff -= 360;
+            b.style.left = (ww/2) + (diff * fov) + "px";
+            b.style.top = (wh/2) + "px";
+            b.style.display = Math.abs(diff) > 40 ? 'none' : 'flex';
         }
-        requestAnimationFrame(fnLoop);
+        requestAnimationFrame(loop);
     }
 </script>
 </body>
